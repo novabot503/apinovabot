@@ -1,8 +1,3 @@
-// ==================== index.js ====================
-// Novabot API - Versi Lengkap dengan Autentikasi Email (Single File)
-// Semua fitur API tetap berfungsi + login dengan email + dashboard foto profil (Gravatar)
-// Tampilan website utama tidak berubah, hanya ditambahkan tombol login/profile di header
-
 const express = require('express');
 const axios = require('axios');
 const cloudscraper = require('cloudscraper');
@@ -20,8 +15,9 @@ const bcrypt = require('bcrypt');
 const flash = require('connect-flash');
 const Database = require('better-sqlite3');
 const crypto = require('crypto');
+const config = require('./setting.js');
 
-// ==================== index.js (bagian konfigurasi) ====================
+// ==================== KONFIGURASI ====================
 const PORT = config.PORT || 8080;
 const HOST = config.HOST || 'localhost';
 const BASE_URL = config.URL || `http://${HOST}:${PORT}`;
@@ -48,7 +44,7 @@ db.exec(`
     email TEXT UNIQUE,
     password TEXT,
     name TEXT,
-    photo TEXT, -- menyimpan URL gravatar
+    photo TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
@@ -63,11 +59,9 @@ passport.deserializeUser((id, done) => {
   done(null, user);
 });
 
-// Strategy Local (Email/Password)
 passport.use(new LocalStrategy({ usernameField: 'email' }, (email, password, done) => {
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   if (!user) return done(null, false, { message: 'Email tidak terdaftar' });
-  
   bcrypt.compare(password, user.password, (err, isValid) => {
     if (err) return done(err);
     if (!isValid) return done(null, false, { message: 'Password salah' });
@@ -78,7 +72,6 @@ passport.use(new LocalStrategy({ usernameField: 'email' }, (email, password, don
 // ==================== INISIALISASI EXPRESS ====================
 const app = express();
 
-// Middleware umum
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(compression());
@@ -86,20 +79,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
 
-// Session
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 1 hari
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
 }));
 
-// Passport
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
 
-// Rate limiting untuk API
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -110,34 +100,21 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 // ==================== FUNGSI HELPER ====================
-
-/**
- * Mendapatkan URL Gravatar dari email
- */
 function getGravatarUrl(email, size = 200) {
   const hash = crypto.createHash('md5').update(email.trim().toLowerCase()).digest('hex');
   return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`;
 }
 
-/**
- * Fetch JSON dari URL
- */
 async function fetchJson(url) {
   const res = await axios.get(url);
   return res.data;
 }
 
-/**
- * Ambil buffer dari URL
- */
 async function getBuffer(url) {
   const res = await axios.get(url, { responseType: 'arraybuffer' });
   return Buffer.from(res.data);
 }
 
-/**
- * Format angka (K, M)
- */
 function formatNumber(num) {
   if (!num) return '0';
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M';
@@ -145,19 +122,13 @@ function formatNumber(num) {
   return num.toString();
 }
 
-/**
- * Format durasi (detik ke MM:SS)
- */
 function formatDuration(seconds) {
-if (!seconds) return 'N/A';
-const mins = Math.floor(seconds / 60);
-const secs = seconds % 60;
-return `${mins}:${secs.toString().padStart(2, '0')}`;
+  if (!seconds) return 'N/A';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-/**
- * Format uptime
- */
 function formatUptime(seconds) {
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
@@ -166,14 +137,10 @@ function formatUptime(seconds) {
   return `${d}d ${h}h ${m}m ${s}s`;
 }
 
-/**
- * Validasi URL
- */
 function isValidUrl(url) {
   return validator.isURL(url, { require_protocol: true, protocols: ['http', 'https'] });
 }
 
-// ==================== MIDDLEWARE CEK LOGIN ====================
 function isAuthenticated(req, res, next) {
   if (req.isAuthenticated()) return next();
   res.redirect('/login');
@@ -328,8 +295,6 @@ async function fetchTikTok(url) {
 }
 
 // ==================== ROUTE AUTENTIKASI ====================
-
-// Halaman login
 app.get('/login', (req, res) => {
   if (req.isAuthenticated()) return res.redirect('/dashboard');
   const error = req.flash('error')[0];
@@ -436,9 +401,7 @@ app.get('/login', (req, res) => {
   <div class="login-box">
     <h2>🔐 ${SITE_NAME}</h2>
     <div class="sub">private access • encrypted session</div>
-    
     ${error ? `<div class="error">${error}</div>` : ''}
-    
     <form action="/login" method="POST">
       <div class="input-group">
         <label>EMAIL</label>
@@ -450,11 +413,9 @@ app.get('/login', (req, res) => {
       </div>
       <button type="submit">LOGIN</button>
     </form>
-    
     <p style="margin: 15px 0;">
       <a href="/register" class="link">Belum punya akun? Daftar</a>
     </p>
-    
     <div class="footer">
       <span>AES-256</span> • status: ONLINE • PING 19ms
     </div>
@@ -464,7 +425,6 @@ app.get('/login', (req, res) => {
   res.send(html);
 });
 
-// Halaman register
 app.get('/register', (req, res) => {
   if (req.isAuthenticated()) return res.redirect('/dashboard');
   const error = req.flash('error')[0];
@@ -571,9 +531,7 @@ app.get('/register', (req, res) => {
   <div class="register-box">
     <h2>📝 ${SITE_NAME}</h2>
     <div class="sub">create new account</div>
-    
     ${error ? `<div class="error">${error}</div>` : ''}
-    
     <form action="/register" method="POST">
       <div class="input-group">
         <label>NAMA</label>
@@ -589,11 +547,9 @@ app.get('/register', (req, res) => {
       </div>
       <button type="submit">DAFTAR</button>
     </form>
-    
     <p style="margin: 15px 0;">
       <a href="/login" class="link">Sudah punya akun? Login</a>
     </p>
-    
     <div class="footer">
       <span>AES-256</span> • status: ONLINE • PING 19ms
     </div>
@@ -603,7 +559,6 @@ app.get('/register', (req, res) => {
   res.send(html);
 });
 
-// Proses register
 app.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
@@ -614,13 +569,11 @@ app.post('/register', async (req, res) => {
     req.flash('error', 'Password minimal 6 karakter');
     return res.redirect('/register');
   }
-  // Cek email sudah terdaftar
   const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   if (existing) {
     req.flash('error', 'Email sudah digunakan');
     return res.redirect('/register');
   }
-  // Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
   const photo = getGravatarUrl(email);
   const stmt = db.prepare('INSERT INTO users (email, password, name, photo) VALUES (?, ?, ?, ?)');
@@ -628,14 +581,12 @@ app.post('/register', async (req, res) => {
   res.redirect('/login');
 });
 
-// Proses login
 app.post('/login', passport.authenticate('local', {
   successRedirect: '/dashboard',
   failureRedirect: '/login',
   failureFlash: true
 }));
 
-// Dashboard (hanya untuk yang sudah login)
 app.get('/dashboard', isAuthenticated, (req, res) => {
   const user = req.user;
   const photo = user.photo || getGravatarUrl(user.email);
@@ -738,7 +689,6 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
   res.send(html);
 });
 
-// Logout
 app.get('/logout', (req, res) => {
   req.logout(err => {
     if (err) console.error(err);
@@ -746,7 +696,7 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// ==================== ROUTE API (SAMA SEPERTI SEBELUMNYA) ====================
+// ==================== ROUTE API ====================
 app.get('/api/status', (req, res) => {
   res.json({ status: 'ok', version: VERSION, developer: DEVELOPER, uptime: process.uptime(), timestamp: Date.now() });
 });
@@ -792,7 +742,6 @@ app.get('/webzip', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ status: false, error: 'Parameter ?url= wajib diisi.' });
   if (!isValidUrl(url)) return res.status(400).json({ status: false, error: 'URL tidak valid.' });
-
   try {
     const result = await saveWeb2Zip(url, { renameAssets: true });
     if (result.error?.code) return res.status(500).json({ status: false, error: result.error.text || 'Gagal menyimpan website.' });
@@ -807,7 +756,6 @@ app.get('/tiktok', async (req, res) => {
   const { url } = req.query;
   if (!url || !url.includes('tiktok.com')) return res.status(400).json({ status: false, error: 'URL TikTok tidak valid.' });
   if (!isValidUrl(url)) return res.status(400).json({ status: false, error: 'URL tidak valid.' });
-
   try {
     const data = await fetchTikTok(url);
     if (!data) return res.status(404).json({ status: false, error: 'Video tidak ditemukan.' });
@@ -866,19 +814,9 @@ app.get('/bratvid', async (req, res) => {
   }
 });
 
-// ==================== HALAMAN UTAMA (WEBSITE LENGKAP) ====================
+// ==================== HALAMAN UTAMA ====================
 app.get('/', (req, res) => {
   const user = req.user;
-  const loginInfo = user 
-    ? `<div style="display:flex; align-items:center; gap:10px;">
-        <img src="${user.photo || getGravatarUrl(user.email)}" style="width:30px; height:30px; border-radius:50%; border:2px solid #5b8cff;">
-        <span>${user.name}</span>
-        <a href="/dashboard" style="color:#5b8cff;">Dashboard</a>
-        <a href="/logout" style="color:#ff3b30;">Logout</a>
-       </div>`
-    : `<a href="/login" style="color:#5b8cff;">Login</a> | <a href="/register" style="color:#5b8cff;">Register</a>`;
-
-  // HTML lengkap dari website sebelumnya (hanya ditambahkan loginInfo di header)
   const html = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -903,7 +841,6 @@ body {
   position: relative;
   overflow-x: hidden;
 }
-/* HEADER */
 .custom-header {
   position: sticky; top: 0; width: 100%; height: 55px;
   background: rgba(10, 12, 20, 0.95); backdrop-filter: blur(10px);
@@ -924,8 +861,6 @@ body {
 .menu-btn.active span:nth-child(1) { transform: rotate(45deg) translate(6px, 6px); }
 .menu-btn.active span:nth-child(2) { opacity: 0; }
 .menu-btn.active span:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px); }
-
-/* STATUS PANEL (SLIDE DOWN) */
 .status-panel {
   position: fixed;
   top: -100%;
@@ -947,8 +882,6 @@ body {
   font-size: 24px;
   text-align: center;
 }
-
-/* METRIC CARDS */
 .metric-row {
   margin-bottom: 20px;
   background: #0b0e18;
@@ -990,7 +923,6 @@ body {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
-
 .status-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1005,12 +937,8 @@ body {
 }
 .status-item .label { color: #8a9bb0; font-size: 12px; text-transform: uppercase; }
 .status-item .value { color: #fff; font-size: 18px; font-weight: bold; font-family: 'VT323'; }
-
-/* PAGE CONTAINER */
 .page-container { padding: 20px; transition: filter 0.3s; }
 .page-container.blur { filter: blur(3px); pointer-events: none; }
-
-/* HEADER CARD */
 .lux-header-card {
   background: linear-gradient(135deg, #1a2a48, #14233c);
   border-radius: 16px; padding: 20px; margin-bottom: 25px;
@@ -1018,14 +946,10 @@ body {
 }
 .lux-header-card h2 { font-family: 'Orbitron'; font-size: 20px; color: #5b8cff; }
 .lux-header-card p { font-size: 14px; color: #a0b0c0; }
-
-/* SECTION TITLE */
 .lux-section-title {
   font-family: 'Orbitron'; font-size: 16px; color: #fff; margin-bottom: 15px;
   padding-left: 8px; border-left: 4px solid #5b8cff;
 }
-
-/* SLIDER */
 .slider-container {
   width: 100%; background: #101520; border-radius: 12px; overflow: hidden;
   border: 1px solid #1f2a40; margin-bottom: 25px; height: 150px;
@@ -1040,8 +964,6 @@ body {
 }
 .slide-content h3 { font-family: 'Orbitron'; font-size: 14px; color: #fff; }
 .slide-content p { font-size: 12px; color: #ccc; }
-
-/* API ENDPOINT CARDS */
 .api-card { margin-bottom: 20px; }
 .api-endpoint {
   background: #101520;
@@ -1100,8 +1022,6 @@ body {
   font-size: 13px;
   margin-bottom: 12px;
 }
-
-/* TOMBOL START */
 .start-btn {
   background: #5b8cff;
   color: #000;
@@ -1120,8 +1040,6 @@ body {
   filter: brightness(1.1);
   transform: scale(1.02);
 }
-
-/* INPUT GROUP */
 .input-group {
   display: flex;
   gap: 10px;
@@ -1142,8 +1060,6 @@ body {
   outline: none;
   border-color: #5b8cff;
 }
-
-/* RESPONSE CONTAINER */
 .response-container {
   margin-top: 15px;
   padding: 12px;
@@ -1192,8 +1108,6 @@ body {
 }
 .badge.success { background: #00ff88; color: #000; }
 .badge.error { background: #ff3b30; color: #fff; }
-
-/* COPY JSON BUTTON */
 .copy-json-btn {
   background: #2a3a60;
   color: #fff;
@@ -1208,8 +1122,6 @@ body {
   gap: 4px;
 }
 .copy-json-btn:hover { background: #3a4a70; }
-
-/* DOWNLOAD BUTTON */
 .download-btn {
   background: #3a6df0;
   color: #fff;
@@ -1224,8 +1136,6 @@ body {
   gap: 4px;
 }
 .download-btn:hover { background: #2a5ac0; }
-
-/* FOOTER */
 .footer {
   text-align: center;
   padding: 20px;
@@ -1234,7 +1144,6 @@ body {
   font-size: 12px;
   margin-top: 20px;
 }
-/* Tambahan untuk user info di header */
 .user-info {
   display: flex;
   align-items: center;
@@ -1276,12 +1185,8 @@ body {
     </div>
   </div>
 </div>
-
-<!-- STATUS PANEL (SLIDE DOWN) -->
 <div class="status-panel" id="statusPanel">
   <h3><i class="fas fa-chart-line"></i> SERVER STATUS</h3>
-  
-  <!-- CPU Load -->
   <div class="metric-row">
     <div class="metric-header">
       <span>CPU Load</span>
@@ -1299,8 +1204,6 @@ body {
       </svg>
     </div>
   </div>
-
-  <!-- Memory -->
   <div class="metric-row">
     <div class="metric-header">
       <span>Memory</span>
@@ -1318,8 +1221,6 @@ body {
       </svg>
     </div>
   </div>
-
-  <!-- Network -->
   <div class="metric-row">
     <div class="metric-header">
       <span>Network</span>
@@ -1337,17 +1238,13 @@ body {
       </svg>
     </div>
   </div>
-
-  <!-- Status Info Grid -->
   <div id="statusContent" class="status-grid">Memuat...</div>
 </div>
-
 <div class="page-container" id="pageContainer">
   <div class="lux-header-card">
     <h2>${SITE_NAME} Service</h2>
     <p>API untuk bot WhatsApp Novabot</p>
   </div>
-
   <div class="lux-section-title">Latest News</div>
   <div class="slider-container" id="newsSlider">
     <div class="slider-track">
@@ -1355,10 +1252,8 @@ body {
       <div class="slide"><video src="https://files.catbox.moe/sbwa8f.mp4" autoplay muted loop playsinline></video><div class="slide-content"><h3>Mudah & Cepat</h3><p>Integrasi dengan bot Anda</p></div></div>
     </div>
   </div>
-
   <div class="lux-section-title">API Endpoints</div>
   <div class="api-card">
-    <!-- WAIFU -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/waifu</span>
@@ -1370,8 +1265,6 @@ body {
       </div>
       <div id="waifuResponse" class="response-container"></div>
     </div>
-
-    <!-- NSFW -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/nsfw</span>
@@ -1383,8 +1276,6 @@ body {
       </div>
       <div id="nsfwResponse" class="response-container"></div>
     </div>
-
-    <!-- WEBZIP -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/webzip?url=</span>
@@ -1397,8 +1288,6 @@ body {
       </div>
       <div id="webzipResponse" class="response-container"></div>
     </div>
-
-    <!-- TIKTOK -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/tiktok?url=</span>
@@ -1411,8 +1300,6 @@ body {
       </div>
       <div id="tiktokResponse" class="response-container"></div>
     </div>
-
-    <!-- BRAT -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/brat?text=</span>
@@ -1425,22 +1312,18 @@ body {
       </div>
       <div id="bratResponse" class="response-container"></div>
     </div>
-
-<!-- PINTEREST -->
-<div class="api-endpoint">
-  <div class="api-header">
-    <span class="method">GET</span><span class="url">/pinterest?q=</span>
-    <button class="copy-btn" onclick="copyText('${BASE_URL}/pinterest?q=')"><i class="fas fa-copy"></i> pinterest</button>
-  </div>
-  <div class="api-desc">Cari gambar di Pinterest. Parameter ?q= (kata kunci)</div>
-  <div class="input-group">
-    <input type="text" id="pinterestQuery" placeholder="Masukkan kata kunci">
-    <button class="start-btn" onclick="testPinterest()"><i class="fas fa-play"></i> Start</button>
-  </div>
-  <div id="pinterestResponse" class="response-container"></div>
-</div>
-
-    <!-- BRATVID -->
+    <div class="api-endpoint">
+      <div class="api-header">
+        <span class="method">GET</span><span class="url">/pinterest?q=</span>
+        <button class="copy-btn" onclick="copyText('${BASE_URL}/pinterest?q=')"><i class="fas fa-copy"></i> pinterest</button>
+      </div>
+      <div class="api-desc">Cari gambar di Pinterest. Parameter ?q= (kata kunci)</div>
+      <div class="input-group">
+        <input type="text" id="pinterestQuery" placeholder="Masukkan kata kunci">
+        <button class="start-btn" onclick="testPinterest()"><i class="fas fa-play"></i> Start</button>
+      </div>
+      <div id="pinterestResponse" class="response-container"></div>
+    </div>
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/bratvid?text=</span>
@@ -1454,25 +1337,19 @@ body {
       <div id="bratvidResponse" class="response-container"></div>
     </div>
   </div>
-
   <div class="footer">
     <p>© 2026 Novabot • <i class="fab fa-telegram"></i> ${DEVELOPER} • v${VERSION}</p>
   </div>
 </div>
-
 <script>
-// ==================== STATUS PANEL TOGGLE ====================
 const menuBtn = document.getElementById('menuBtn');
 const statusPanel = document.getElementById('statusPanel');
 const pageContainer = document.getElementById('pageContainer');
-
 menuBtn.addEventListener('click', () => {
   menuBtn.classList.toggle('active');
   statusPanel.classList.toggle('show');
   pageContainer.classList.toggle('blur');
 });
-
-// ==================== LOAD STATUS INFO ====================
 const statusContent = document.getElementById('statusContent');
 async function loadStatus() {
   try {
@@ -1494,8 +1371,6 @@ function formatUptime(s) {
 }
 loadStatus();
 setInterval(loadStatus, 30000);
-
-// ==================== SIMULASI NILAI CPU, MEMORY, NETWORK ====================
 setInterval(() => {
   const cpu = (Math.random() * 30).toFixed(1) + '%';
   const mem = Math.floor(Math.random() * 400) + ' MiB';
@@ -1504,8 +1379,6 @@ setInterval(() => {
   document.getElementById('memValue').innerText = mem;
   document.getElementById('netValue').innerText = net;
 }, 2000);
-
-// ==================== SLIDER ====================
 let slideIdx=0, slideInt;
 const slider=document.getElementById('newsSlider'), track=document.querySelector('.slider-track');
 function startSlider(){clearInterval(slideInt);slideInt=setInterval(()=>{slideIdx=(slideIdx+1)%2;updateSlide();},5000);}
@@ -1520,8 +1393,6 @@ slider.addEventListener('touchend',e=>{if(!isSwiping)return;isSwiping=false;cons
 ['mousedown','mousemove','mouseup','mouseleave'].forEach(ev=>slider.addEventListener(ev,e=>{e.preventDefault();}));
 }
 startSlider(); setupSlider();
-
-// ==================== PINTEREST ====================
 async function testPinterest() {
   const query = document.getElementById('pinterestQuery').value.trim();
   if (!query) return alert('Masukkan kata kunci!');
@@ -1569,8 +1440,6 @@ async function testPinterest() {
     respDiv.classList.add('error');
   }
 }
-
-// ==================== WAIFU ====================
 async function testWaifu() {
   const respDiv = document.getElementById('waifuResponse');
   respDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
@@ -1589,8 +1458,6 @@ async function testWaifu() {
     respDiv.classList.add('error');
   }
 }
-
-// ==================== NSFW ====================
 async function testNsfw() {
   const respDiv = document.getElementById('nsfwResponse');
   respDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
@@ -1609,8 +1476,6 @@ async function testNsfw() {
     respDiv.classList.add('error');
   }
 }
-
-// ==================== WEBZIP ====================
 async function testWebzip() {
   const urlInput = document.getElementById('webzipUrl').value.trim();
   if (!urlInput) return alert('Masukkan URL!');
@@ -1636,8 +1501,6 @@ async function testWebzip() {
     respDiv.classList.add('error');
   }
 }
-
-// ==================== TIKTOK ====================
 async function testTiktok() {
   const urlInput = document.getElementById('tiktokUrl').value.trim();
   if (!urlInput) return alert('Masukkan URL TikTok!');
@@ -1683,8 +1546,6 @@ async function testTiktok() {
     respDiv.classList.add('error');
   }
 }
-
-// ==================== BRAT ====================
 async function testBrat() {
   const textInput = document.getElementById('bratText').value.trim();
   if (!textInput) return alert('Masukkan teks!');
@@ -1711,8 +1572,6 @@ async function testBrat() {
     respDiv.classList.add('error');
   }
 }
-
-// ==================== BRATVID ====================
 async function testBratvid() {
   const textInput = document.getElementById('bratvidText').value.trim();
   if (!textInput) return alert('Masukkan teks!');
@@ -1739,13 +1598,10 @@ async function testBratvid() {
     respDiv.classList.add('error');
   }
 }
-
-// ==================== COPY TEXT ====================
 function copyText(text, label) {
   if (label === 'json') text = decodeURIComponent(text);
   navigator.clipboard.writeText(text).then(() => alert('Teks disalin!'));
 }
-
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('video').forEach(v=>v.play().catch(()=>{}));
 });
@@ -1759,7 +1615,7 @@ document.addEventListener('keydown',e=>{
   res.send(html);
 });
 
-// ==================== ERROR HANDLER GLOBAL ====================
+// ==================== ERROR HANDLER ====================
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err.stack);
   res.status(500).json({ status: false, error: 'Terjadi kesalahan internal server.' });
