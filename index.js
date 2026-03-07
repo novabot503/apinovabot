@@ -15,6 +15,7 @@ const bcrypt = require('bcrypt');
 const flash = require('connect-flash');
 const Database = require('better-sqlite3');
 const crypto = require('crypto');
+const path = require('path');
 const config = require('./setting.js');
 
 // ==================== KONFIGURASI ====================
@@ -37,17 +38,28 @@ const httpsAgent = new https.Agent({
 const NSFW_TYPES = ['blowjob', 'neko', 'trap', 'waifu'];
 
 // ==================== DATABASE SQLITE ====================
-const db = new Database('database.sqlite');
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE,
-    password TEXT,
-    name TEXT,
-    photo TEXT,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+// Gunakan /tmp/database.sqlite jika di Vercel (production), else local
+const isVercel = process.env.VERCEL === '1';
+const DB_PATH = isVercel ? '/tmp/database.sqlite' : path.join(__dirname, 'database.sqlite');
+
+let db;
+try {
+  db = new Database(DB_PATH);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE,
+      password TEXT,
+      name TEXT,
+      photo TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  console.log('Database connected at:', DB_PATH);
+} catch (err) {
+  console.error('Failed to open database:', err.message);
+  process.exit(1); // Gagal total, hentikan aplikasi
+}
 
 // ==================== PASSPORT CONFIGURATION ====================
 passport.serializeUser((user, done) => {
