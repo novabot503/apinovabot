@@ -28,5 +28,11 @@
     "userId": 1,
     "comment": "Oh iya nanti aku tambahin ya",
     "createdAt": "2026-03-08T22:16:12.320Z"
+  },
+  {
+    "id": 6,
+    "userId": 4,
+    "comment": "Hai",
+    "createdAt": "2026-03-08T22:17:51.764Z"
   }
 ]
