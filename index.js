@@ -418,7 +418,7 @@ app.get('/login', (req, res) => {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=0.65">
   <title>Login - ${SITE_NAME}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family: 'Rajdhani', sans-serif; }
@@ -563,7 +563,7 @@ app.get('/register', (req, res) => {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=0.65">
   <title>Register - ${SITE_NAME}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family: 'Rajdhani', sans-serif; }
@@ -758,7 +758,7 @@ app.get('/profile', isAuthenticated, (req, res) => {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=0.65">
   <title>Profil - ${SITE_NAME}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family: 'Rajdhani', sans-serif; }
