@@ -119,21 +119,48 @@ async function writeGitHubFile(filePath, content, sha = null, message = 'Update 
   });
 }
 
-// Fungsi menulis dengan retry jika terjadi konflik
 async function writeGitHubFileWithRetry(filePath, content, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
     try {
-      const { sha } = await readGitHubFile(filePath); // baca ulang untuk dapat sha terbaru
+      const { sha } = await readGitHubFile(filePath);
       await writeGitHubFile(filePath, content, sha, 'Update file');
       return;
     } catch (error) {
       if (error.status === 409 && i < maxRetries - 1) {
         console.log(`Konflik saat menulis ${filePath}, mencoba lagi... (${i+1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, 100 * (i+1))); // backoff
+        await new Promise(resolve => setTimeout(resolve, 100 * (i+1)));
         continue;
       }
       throw error;
     }
+  }
+}
+
+// Fungsi untuk menghapus file di GitHub
+async function deleteGitHubFile(filePath) {
+  if (!octokit) throw new Error('GitHub tidak tersedia');
+  try {
+    const { sha } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path: filePath,
+      ref: GITHUB_BRANCH,
+    }).then(res => res.data);
+    await octokit.repos.deleteFile({
+      owner,
+      repo,
+      path: filePath,
+      message: `Delete file ${filePath}`,
+      sha,
+      branch: GITHUB_BRANCH,
+    });
+    console.log(`File ${filePath} berhasil dihapus`);
+  } catch (error) {
+    if (error.status === 404) {
+      // File tidak ada, abaikan
+      return;
+    }
+    throw error;
   }
 }
 
@@ -198,12 +225,31 @@ async function addComment(commentData) {
   return newComment;
 }
 
-// ==================== FUNGSI UPLOAD FOTO KE GITHUB ====================
-async function uploadAvatarToGitHub(userId, fileBuffer, fileName, mimeType) {
+// ==================== FUNGSI UPLOAD FOTO KE GITHUB (dengan penghapusan file lama) ====================
+async function uploadAvatarToGitHub(userId, fileBuffer, fileName, mimeType, oldPhotoUrl) {
   if (!octokit) throw new Error('GitHub tidak tersedia');
+
+  // Tentukan ekstensi dari file yang diupload
   const ext = path.extname(fileName) || '.jpg';
-  const safeName = `avatar_${userId}_${Date.now()}${ext}`;
-  const filePath = `avatars/${safeName}`;
+  const newFileName = `avatar_${userId}${ext}`;
+  const filePath = `avatars/${newFileName}`;
+
+  // Hapus file lama jika ada dan berbeda path
+  if (oldPhotoUrl) {
+    try {
+      // Ekstrak path dari URL lama
+      const urlParts = oldPhotoUrl.split('/');
+      const oldFilePath = urlParts.slice(urlParts.indexOf('avatars')).join('/');
+      if (oldFilePath !== filePath) {
+        await deleteGitHubFile(oldFilePath);
+      }
+    } catch (error) {
+      console.error('Gagal menghapus file lama:', error.message);
+      // Tetap lanjutkan upload
+    }
+  }
+
+  // Upload file baru
   try {
     await octokit.repos.createOrUpdateFileContents({
       owner,
@@ -1208,9 +1254,10 @@ app.post('/profile', isAuthenticated, upload.single('photo'), async (req, res) =
   let photoUrl = req.user.photo; // tetap pakai yang lama jika tidak ada upload
   if (req.file) {
     try {
-      photoUrl = await uploadAvatarToGitHub(req.user.id, req.file.buffer, req.file.originalname, req.file.mimetype);
+      // Upload foto baru, hapus yang lama
+      photoUrl = await uploadAvatarToGitHub(req.user.id, req.file.buffer, req.file.originalname, req.file.mimetype, req.user.photo);
     } catch (err) {
-      return res.status(500).json({ error: 'Gagal upload foto' });
+      return res.status(500).json({ error: 'Gagal upload foto: ' + err.message });
     }
   }
 
@@ -1223,7 +1270,7 @@ app.post('/profile', isAuthenticated, upload.single('photo'), async (req, res) =
   }
 });
 
-// ==================== API KOMENTAR (DIPERBAIKI) ====================
+// ==================== API KOMENTAR ====================
 app.get('/api/comments', isAuthenticated, async (req, res) => {
   try {
     const comments = await getComments();
@@ -1436,7 +1483,13 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 20px; z-index: 100; border-bottom: 1px solid #1f2a40;
 }
-.header-title { font-family: 'Orbitron'; font-size: 20px; color: #5b8cff; letter-spacing: 1px; }
+.header-title {
+  font-family: 'Orbitron'; font-size: 20px; color: #5b8cff; letter-spacing: 1px;
+  text-decoration: none;
+}
+.header-title:hover {
+  text-decoration: underline;
+}
 .menu-btn {
   width: 40px; height: 40px; display: flex; flex-direction: column;
   justify-content: center; align-items: center; gap: 5px; cursor: pointer;
@@ -1814,14 +1867,13 @@ body {
 </head>
 <body>
 <div class="custom-header">
-  <div class="header-title">${SITE_NAME}</div>
+  <a href="/" class="header-title">${SITE_NAME}</a>
   <div style="display: flex; align-items: center; gap: 15px;">
     ${user ? `
       <div class="user-dropdown">
         <img src="${gravatar}" class="user-avatar" alt="Avatar">
         <div class="user-dropdown-content">
           <a href="/profile"><i class="fas fa-user"></i> Profil</a>
-          <a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
           <button onclick="confirmDelete()"><i class="fas fa-trash"></i> Hapus Akun</button>
         </div>
       </div>
@@ -2356,7 +2408,7 @@ async function startServer() {
 \x1b[1m\x1b[32m═══════════════════════════════════════\x1b[0m
 🌐 Server: http://${HOST}:${PORT}
 👤 Developer: ${DEVELOPER}
-✅ Semua data tersimpan di GitHub, komentar diperbaiki!
+✅ Semua data tersimpan di GitHub, foto profil otomatis dihapus saat diganti!
     `);
   });
 }
