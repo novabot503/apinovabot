@@ -25,5 +25,14 @@
     "bio": "",
     "photo": "https://raw.githubusercontent.com/novabot503/apinovabot/main/avatars/avatar_3.jpg",
     "createdAt": "2026-03-08T21:58:24.267Z"
+  },
+  {
+    "id": 4,
+    "email": "andzznih2020@gmail.com",
+    "password": "$2b$10$IkvtGPR0gT3gyLVUs4OY8O/97.3.TK3gKU92anktVBXvaNKaImHTe",
+    "name": "Andz",
+    "bio": "",
+    "photo": "",
+    "createdAt": "2026-03-08T22:17:36.372Z"
   }
 ]
