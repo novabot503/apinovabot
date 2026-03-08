@@ -21,9 +21,9 @@
     "id": 3,
     "email": "email@example.com",
     "password": "$2b$10$Wk.WWU3OntOy6oCtI9UGhOinoK3mW0xDFfcUGvaREnChwccXAFmVe",
-    "name": "email",
+    "name": "Rafki",
     "bio": "",
-    "photo": "",
+    "photo": "https://raw.githubusercontent.com/novabot503/apinovabot/main/avatars/avatar_3.jpg",
     "createdAt": "2026-03-08T21:58:24.267Z"
   }
 ]
