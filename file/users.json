@@ -16,5 +16,14 @@
     "bio": "",
     "photo": "",
     "createdAt": "2026-03-08T21:02:08.810Z"
+  },
+  {
+    "id": 3,
+    "email": "email@example.com",
+    "password": "$2b$10$Wk.WWU3OntOy6oCtI9UGhOinoK3mW0xDFfcUGvaREnChwccXAFmVe",
+    "name": "email",
+    "bio": "",
+    "photo": "",
+    "createdAt": "2026-03-08T21:58:24.267Z"
   }
 ]
