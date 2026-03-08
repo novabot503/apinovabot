@@ -13,7 +13,6 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const bcrypt = require('bcrypt');
 const flash = require('connect-flash');
-const Database = require('better-sqlite3');
 const crypto = require('crypto');
 const path = require('path');
 const { Octokit } = require('@octokit/rest');
@@ -31,6 +30,9 @@ const SITE_NAME = config.SITE_NAME || 'NovaBot API';
 
 // GitHub config (akan diinisialisasi async)
 let GITHUB_TOKEN = null;
+let GITHUB_REPO = null; // format "owner/repo"
+let GITHUB_BRANCH = 'main';
+let GITHUB_PATH = 'file';
 let octokit = null;
 let owner, repo;
 
@@ -47,161 +49,141 @@ const httpsAgent = new https.Agent({
 // Daftar tipe NSFW
 const NSFW_TYPES = ['blowjob', 'neko', 'trap', 'waifu'];
 
-// ==================== DATABASE SQLITE ====================
-const isVercel = process.env.VERCEL === '1';
-const DB_PATH = isVercel ? '/tmp/database.sqlite' : path.join(__dirname, 'database.sqlite');
-
-let db;
-try {
-  db = new Database(DB_PATH);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE,
-      password TEXT,
-      name TEXT,
-      bio TEXT DEFAULT '',
-      photo TEXT DEFAULT '',
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS comments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      userId INTEGER,
-      comment TEXT NOT NULL,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `);
-  console.log('Database connected at:', DB_PATH);
-} catch (err) {
-  console.error('Failed to open database:', err.message);
-  process.exit(1);
-}
-
 // ==================== GITHUB INITIALIZATION ====================
 async function initGithub() {
   const tokenConfig = config.GITHUB_TOKEN;
   if (!tokenConfig) {
-    console.warn('GITHUB_TOKEN tidak dikonfigurasi, fitur backup dinonaktifkan.');
-    return;
+    console.error('GITHUB_TOKEN tidak dikonfigurasi. Aplikasi tidak dapat berjalan.');
+    process.exit(1);
   }
 
-  // Jika tokenConfig adalah URL (dimulai dengan http)
+  // Ambil konfigurasi dari URL JSON
   if (tokenConfig.startsWith('http://') || tokenConfig.startsWith('https://')) {
     try {
-      console.log('Mengambil token GitHub dari URL:', tokenConfig);
+      console.log('Mengambil konfigurasi GitHub dari URL:', tokenConfig);
       const response = await axios.get(tokenConfig);
-      GITHUB_TOKEN = response.data.github_token;
-      if (!GITHUB_TOKEN) {
-        throw new Error('Token tidak ditemukan dalam response JSON');
+      const data = response.data;
+      GITHUB_TOKEN = data.github_token;
+      GITHUB_REPO = data.github_repo;
+      GITHUB_BRANCH = data.github_branch || 'main';
+      GITHUB_PATH = data.github_path || 'file';
+      if (!GITHUB_TOKEN || !GITHUB_REPO) {
+        throw new Error('Token atau repo tidak ditemukan dalam response JSON');
       }
     } catch (error) {
-      console.error('Gagal mengambil token GitHub dari URL:', error.message);
-      return;
+      console.error('Gagal mengambil konfigurasi GitHub dari URL:', error.message);
+      process.exit(1);
     }
   } else {
-    // Anggap langsung token
-    GITHUB_TOKEN = tokenConfig;
+    // Jika bukan URL, anggap langsung token (untuk backward compatibility, tapi kita butuh repo juga)
+    console.error('GITHUB_TOKEN harus berupa URL JSON yang berisi token dan repo.');
+    process.exit(1);
   }
 
   if (GITHUB_TOKEN) {
     octokit = new Octokit({ auth: GITHUB_TOKEN });
-    const repoFull = config.GITHUB_REPO;
-    if (repoFull) {
-      [owner, repo] = repoFull.split('/');
-      console.log(`GitHub siap: owner=${owner}, repo=${repo}`);
-    } else {
-      console.warn('GITHUB_REPO tidak dikonfigurasi');
-    }
+    [owner, repo] = GITHUB_REPO.split('/');
+    console.log(`GitHub siap: owner=${owner}, repo=${repo}, branch=${GITHUB_BRANCH}, path=${GITHUB_PATH}`);
   }
 }
 
-// ==================== GITHUB BACKUP HELPER ====================
-async function backupCollectionToGitHub(collection, records) {
-  if (!octokit || !owner || !repo) return;
-  const filePath = `${config.GITHUB_PATH}/${collection}.json`.replace(/\/+/g, '/');
+// ==================== FUNGSI BACA/TULIS GITHUB ====================
+async function readGitHubFile(filePath) {
+  if (!octokit) throw new Error('GitHub tidak tersedia');
   try {
-    let sha;
-    try {
-      const { data } = await octokit.repos.getContent({
-        owner,
-        repo,
-        path: filePath,
-        ref: config.GITHUB_BRANCH,
-      });
-      sha = data.sha;
-    } catch (e) {
-      // File belum ada
-    }
-
-    await octokit.repos.createOrUpdateFileContents({
+    const { data } = await octokit.repos.getContent({
       owner,
       repo,
       path: filePath,
-      message: `Update ${collection} - ${new Date().toISOString()}`,
-      content: Buffer.from(JSON.stringify(records, null, 2)).toString('base64'),
-      branch: config.GITHUB_BRANCH,
-      sha,
+      ref: GITHUB_BRANCH,
     });
-    console.log(`GitHub backup sukses: ${collection}`);
+    const content = Buffer.from(data.content, 'base64').toString();
+    return { content: JSON.parse(content), sha: data.sha };
   } catch (error) {
-    console.error(`GitHub backup gagal untuk ${collection}:`, error.message);
-  }
-}
-
-async function backupUserToGitHub(userData) {
-  if (!octokit) return;
-  try {
-    let existing = [];
-    try {
-      const { data } = await octokit.repos.getContent({
-        owner,
-        repo,
-        path: `${config.GITHUB_PATH}/users.json`,
-        ref: config.GITHUB_BRANCH,
-      });
-      const content = Buffer.from(data.content, 'base64').toString();
-      existing = JSON.parse(content);
-    } catch (e) {}
-
-    const index = existing.findIndex(u => u.id === userData.id);
-    if (index !== -1) {
-      existing[index] = { ...existing[index], ...userData };
-    } else {
-      existing.push(userData);
+    if (error.status === 404) {
+      return { content: null, sha: null };
     }
-
-    await backupCollectionToGitHub('users', existing);
-  } catch (error) {
-    console.error('Gagal backup user ke GitHub:', error.message);
+    throw error;
   }
 }
 
-async function backupCommentToGitHub(commentData) {
-  if (!octokit) return;
-  try {
-    let existing = [];
-    try {
-      const { data } = await octokit.repos.getContent({
-        owner,
-        repo,
-        path: `${config.GITHUB_PATH}/comments.json`,
-        ref: config.GITHUB_BRANCH,
-      });
-      const content = Buffer.from(data.content, 'base64').toString();
-      existing = JSON.parse(content);
-    } catch (e) {}
-
-    existing.push(commentData);
-    await backupCollectionToGitHub('comments', existing);
-  } catch (error) {
-    console.error('Gagal backup komentar ke GitHub:', error.message);
-  }
+async function writeGitHubFile(filePath, content, sha = null, message = 'Update file') {
+  if (!octokit) throw new Error('GitHub tidak tersedia');
+  await octokit.repos.createOrUpdateFileContents({
+    owner,
+    repo,
+    path: filePath,
+    message,
+    content: Buffer.from(JSON.stringify(content, null, 2)).toString('base64'),
+    branch: GITHUB_BRANCH,
+    sha,
+  });
 }
 
-// Fungsi upload foto ke GitHub
+// ==================== FUNGSI MANAJEMEN USER ====================
+async function getUsers() {
+  const filePath = `${GITHUB_PATH}/users.json`.replace(/\/+/g, '/');
+  const { content } = await readGitHubFile(filePath);
+  return content || [];
+}
+
+async function saveUsers(users) {
+  const filePath = `${GITHUB_PATH}/users.json`.replace(/\/+/g, '/');
+  const { sha } = await readGitHubFile(filePath); // dapatkan sha untuk update
+  await writeGitHubFile(filePath, users, sha, 'Update users');
+}
+
+async function findUserByEmail(email) {
+  const users = await getUsers();
+  return users.find(u => u.email === email);
+}
+
+async function findUserById(id) {
+  const users = await getUsers();
+  return users.find(u => u.id === id);
+}
+
+async function createUser(userData) {
+  const users = await getUsers();
+  const newId = users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1;
+  const newUser = { id: newId, ...userData, createdAt: new Date().toISOString() };
+  users.push(newUser);
+  await saveUsers(users);
+  return newUser;
+}
+
+async function updateUser(id, updatedFields) {
+  const users = await getUsers();
+  const index = users.findIndex(u => u.id === id);
+  if (index === -1) return null;
+  users[index] = { ...users[index], ...updatedFields };
+  await saveUsers(users);
+  return users[index];
+}
+
+// ==================== FUNGSI MANAJEMEN KOMENTAR ====================
+async function getComments() {
+  const filePath = `${GITHUB_PATH}/comments.json`.replace(/\/+/g, '/');
+  const { content } = await readGitHubFile(filePath);
+  return content || [];
+}
+
+async function saveComments(comments) {
+  const filePath = `${GITHUB_PATH}/comments.json`.replace(/\/+/g, '/');
+  const { sha } = await readGitHubFile(filePath);
+  await writeGitHubFile(filePath, comments, sha, 'Update comments');
+}
+
+async function addComment(commentData) {
+  const comments = await getComments();
+  const newId = comments.length > 0 ? Math.max(...comments.map(c => c.id)) + 1 : 1;
+  const newComment = { id: newId, ...commentData, createdAt: new Date().toISOString() };
+  comments.push(newComment);
+  await saveComments(comments);
+  return newComment;
+}
+
+// ==================== FUNGSI UPLOAD FOTO KE GITHUB ====================
 async function uploadAvatarToGitHub(userId, fileBuffer, fileName, mimeType) {
   if (!octokit) throw new Error('GitHub tidak tersedia');
   const ext = path.extname(fileName) || '.jpg';
@@ -214,65 +196,15 @@ async function uploadAvatarToGitHub(userId, fileBuffer, fileName, mimeType) {
       path: filePath,
       message: `Upload avatar for user ${userId}`,
       content: fileBuffer.toString('base64'),
-      branch: config.GITHUB_BRANCH,
+      branch: GITHUB_BRANCH,
     });
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${config.GITHUB_BRANCH}/${filePath}`;
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${GITHUB_BRANCH}/${filePath}`;
     return rawUrl;
   } catch (error) {
     console.error('Gagal upload avatar ke GitHub:', error.message);
     throw error;
   }
 }
-
-// ==================== PASSPORT CONFIGURATION ====================
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser((id, done) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
-  done(null, user);
-});
-
-passport.use(new LocalStrategy({ usernameField: 'email' }, (email, password, done) => {
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-  if (!user) return done(null, false, { message: 'Email tidak terdaftar' });
-  bcrypt.compare(password, user.password, (err, isValid) => {
-    if (err) return done(err);
-    if (!isValid) return done(null, false, { message: 'Password salah' });
-    return done(null, user);
-  });
-}));
-
-// ==================== INISIALISASI EXPRESS ====================
-const app = express();
-
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
-app.use(compression());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
-
-app.use(session({
-  secret: SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
-}));
-
-app.use(passport.initialize());
-app.use(passport.session());
-app.use(flash());
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { status: false, error: 'Terlalu banyak permintaan, coba lagi nanti.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api', limiter);
 
 // ==================== FUNGSI HELPER ====================
 function getGravatarUrl(email, size = 200) {
@@ -468,6 +400,62 @@ async function fetchTikTok(url) {
   });
   return response.data.data;
 }
+
+// ==================== PASSPORT CONFIGURATION ====================
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await findUserById(id);
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
+});
+
+passport.use(new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
+  try {
+    const user = await findUserByEmail(email);
+    if (!user) return done(null, false, { message: 'Email tidak terdaftar' });
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) return done(null, false, { message: 'Password salah' });
+    return done(null, user);
+  } catch (err) {
+    return done(err);
+  }
+}));
+
+// ==================== INISIALISASI EXPRESS ====================
+const app = express();
+
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors());
+app.use(compression());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
+
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(flash());
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { status: false, error: 'Terlalu banyak permintaan, coba lagi nanti.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', limiter);
 
 // ==================== ROUTE AUTENTIKASI ====================
 app.get('/login', (req, res) => {
@@ -774,27 +762,26 @@ app.post('/register', async (req, res) => {
     req.flash('error', 'Password minimal 6 karakter');
     return res.redirect('/register');
   }
-  const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-  if (existing) {
-    req.flash('error', 'Email sudah digunakan');
-    return res.redirect('/register');
+  try {
+    const existing = await findUserByEmail(email);
+    if (existing) {
+      req.flash('error', 'Email sudah digunakan');
+      return res.redirect('/register');
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await createUser({
+      email,
+      password: hashedPassword,
+      name,
+      bio: '',
+      photo: '',
+    });
+    res.redirect('/login');
+  } catch (err) {
+    console.error(err);
+    req.flash('error', 'Terjadi kesalahan, coba lagi');
+    res.redirect('/register');
   }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const stmt = db.prepare('INSERT INTO users (email, password, name, bio, photo) VALUES (?, ?, ?, ?, ?)');
-  const info = stmt.run(email, hashedPassword, name, '', '');
-  const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
-
-  // Backup ke GitHub
-  backupUserToGitHub({
-    id: newUser.id,
-    email: newUser.email,
-    name: newUser.name,
-    bio: newUser.bio || '',
-    photo: newUser.photo || '',
-    createdAt: newUser.createdAt,
-  }).catch(console.error);
-
-  res.redirect('/login');
 });
 
 app.post('/login', passport.authenticate('local', {
@@ -1212,35 +1199,36 @@ app.post('/profile', isAuthenticated, upload.single('photo'), async (req, res) =
     }
   }
 
-  const stmt = db.prepare('UPDATE users SET name = ?, bio = ?, photo = ? WHERE id = ?');
-  stmt.run(name, bio || '', photoUrl, req.user.id);
-
-  const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  backupUserToGitHub({
-    id: updatedUser.id,
-    email: updatedUser.email,
-    name: updatedUser.name,
-    bio: updatedUser.bio || '',
-    photo: updatedUser.photo || '',
-    createdAt: updatedUser.createdAt,
-  }).catch(console.error);
-
-  res.json({ success: true });
+  try {
+    const updatedUser = await updateUser(req.user.id, { name, bio, photo: photoUrl });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal menyimpan profil' });
+  }
 });
 
 // ==================== API KOMENTAR ====================
-app.get('/api/comments', isAuthenticated, (req, res) => {
-  const comments = db.prepare(`
-    SELECT comments.*, users.name, users.email, users.photo
-    FROM comments 
-    JOIN users ON comments.userId = users.id 
-    ORDER BY comments.createdAt DESC
-  `).all();
-  // Tambahkan gravatar jika tidak punya foto
-  comments.forEach(c => {
-    c.gravatar = c.photo || getGravatarUrl(c.email, 40);
-  });
-  res.json(comments);
+app.get('/api/comments', isAuthenticated, async (req, res) => {
+  try {
+    const comments = await getComments();
+    // Gabungkan dengan data user
+    const users = await getUsers();
+    const commentsWithUser = comments.map(c => {
+      const user = users.find(u => u.id === c.userId);
+      return {
+        ...c,
+        name: user ? user.name : 'Unknown',
+        email: user ? user.email : '',
+        photo: user ? user.photo : '',
+        gravatar: user ? (user.photo || getGravatarUrl(user.email, 40)) : getGravatarUrl('', 40)
+      };
+    });
+    res.json(commentsWithUser);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal memuat komentar' });
+  }
 });
 
 app.post('/api/comments', isAuthenticated, async (req, res) => {
@@ -1248,33 +1236,36 @@ app.post('/api/comments', isAuthenticated, async (req, res) => {
   if (!comment || comment.trim() === '') {
     return res.status(400).json({ error: 'Komentar tidak boleh kosong' });
   }
-  const stmt = db.prepare('INSERT INTO comments (userId, comment) VALUES (?, ?)');
-  const info = stmt.run(req.user.id, comment);
-
-  const newComment = {
-    id: info.lastInsertRowid,
-    userId: req.user.id,
-    userName: req.user.name,
-    comment,
-    createdAt: new Date().toISOString(),
-  };
-  backupCommentToGitHub(newComment).catch(console.error);
-
-  res.json({ success: true });
+  try {
+    const newComment = await addComment({
+      userId: req.user.id,
+      comment,
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal mengirim komentar' });
+  }
 });
 
 // ==================== HAPUS AKUN ====================
-app.post('/delete-account', isAuthenticated, (req, res) => {
+app.post('/delete-account', isAuthenticated, async (req, res) => {
   const { confirm } = req.body;
   if (confirm !== 'DELETE') {
     return res.status(400).json({ error: 'Konfirmasi tidak valid' });
   }
-  const stmt = db.prepare('DELETE FROM users WHERE id = ?');
-  stmt.run(req.user.id);
-  req.logout(err => {
-    if (err) console.error(err);
-    res.json({ success: true });
-  });
+  try {
+    const users = await getUsers();
+    const filtered = users.filter(u => u.id !== req.user.id);
+    await saveUsers(filtered);
+    req.logout(err => {
+      if (err) console.error(err);
+      res.json({ success: true });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal menghapus akun' });
+  }
 });
 
 // ==================== ROUTE API ====================
@@ -2351,7 +2342,7 @@ async function startServer() {
 \x1b[1m\x1b[32m═══════════════════════════════════════\x1b[0m
 🌐 Server: http://${HOST}:${PORT}
 👤 Developer: ${DEVELOPER}
-✅ Profil dengan upload foto, komentar, backup GitHub siap!
+✅ Semua data tersimpan di GitHub!
     `);
   });
 }

@@ -6,11 +6,8 @@ module.exports = {
     HOST: 'localhost',
     DEVELOPER: '@Novabot403',
     VERSI_WEB: '1.0',
-    URL: 'https://apinovabot.vercel.app',
+    URL: 'https://webnova-xi.vercel.app',
     SESSION_SECRET: 'novabot-super-secret-2026',
     SITE_NAME: 'NovaBot API',
-    GITHUB_TOKEN: "https://files.catbox.moe/hg44c0.json",
-    GITHUB_REPO: "novabot503/apinovabot",
-    GITHUB_BRANCH: "main",
-    GITHUB_PATH: "file"
+    GITHUB_TOKEN: "https://files.catbox.moe/4p72ze.json"
 };
