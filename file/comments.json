@@ -34,5 +34,11 @@
     "userId": 4,
     "comment": "Hai",
     "createdAt": "2026-03-08T22:17:51.764Z"
+  },
+  {
+    "id": 7,
+    "userId": 4,
+    "comment": "Buatin fitur api cek link phising bang",
+    "createdAt": "2026-03-08T22:18:21.673Z"
   }
 ]
