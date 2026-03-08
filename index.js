@@ -75,7 +75,6 @@ async function initGithub() {
       process.exit(1);
     }
   } else {
-    // Jika bukan URL, anggap langsung token (untuk backward compatibility, tapi kita butuh repo juga)
     console.error('GITHUB_TOKEN harus berupa URL JSON yang berisi token dan repo.');
     process.exit(1);
   }
@@ -120,6 +119,24 @@ async function writeGitHubFile(filePath, content, sha = null, message = 'Update 
   });
 }
 
+// Fungsi menulis dengan retry jika terjadi konflik
+async function writeGitHubFileWithRetry(filePath, content, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const { sha } = await readGitHubFile(filePath); // baca ulang untuk dapat sha terbaru
+      await writeGitHubFile(filePath, content, sha, 'Update file');
+      return;
+    } catch (error) {
+      if (error.status === 409 && i < maxRetries - 1) {
+        console.log(`Konflik saat menulis ${filePath}, mencoba lagi... (${i+1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 100 * (i+1))); // backoff
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 // ==================== FUNGSI MANAJEMEN USER ====================
 async function getUsers() {
   const filePath = `${GITHUB_PATH}/users.json`.replace(/\/+/g, '/');
@@ -129,8 +146,7 @@ async function getUsers() {
 
 async function saveUsers(users) {
   const filePath = `${GITHUB_PATH}/users.json`.replace(/\/+/g, '/');
-  const { sha } = await readGitHubFile(filePath); // dapatkan sha untuk update
-  await writeGitHubFile(filePath, users, sha, 'Update users');
+  await writeGitHubFileWithRetry(filePath, users);
 }
 
 async function findUserByEmail(email) {
@@ -170,8 +186,7 @@ async function getComments() {
 
 async function saveComments(comments) {
   const filePath = `${GITHUB_PATH}/comments.json`.replace(/\/+/g, '/');
-  const { sha } = await readGitHubFile(filePath);
-  await writeGitHubFile(filePath, comments, sha, 'Update comments');
+  await writeGitHubFileWithRetry(filePath, comments);
 }
 
 async function addComment(commentData) {
@@ -1208,11 +1223,10 @@ app.post('/profile', isAuthenticated, upload.single('photo'), async (req, res) =
   }
 });
 
-// ==================== API KOMENTAR ====================
+// ==================== API KOMENTAR (DIPERBAIKI) ====================
 app.get('/api/comments', isAuthenticated, async (req, res) => {
   try {
     const comments = await getComments();
-    // Gabungkan dengan data user
     const users = await getUsers();
     const commentsWithUser = comments.map(c => {
       const user = users.find(u => u.id === c.userId);
@@ -1226,7 +1240,7 @@ app.get('/api/comments', isAuthenticated, async (req, res) => {
     });
     res.json(commentsWithUser);
   } catch (err) {
-    console.error(err);
+    console.error('Gagal memuat komentar:', err);
     res.status(500).json({ error: 'Gagal memuat komentar' });
   }
 });
@@ -1239,12 +1253,12 @@ app.post('/api/comments', isAuthenticated, async (req, res) => {
   try {
     const newComment = await addComment({
       userId: req.user.id,
-      comment,
+      comment: comment.trim(),
     });
-    res.json({ success: true });
+    res.json({ success: true, comment: newComment });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Gagal mengirim komentar' });
+    console.error('Gagal mengirim komentar:', err);
+    res.status(500).json({ error: 'Gagal mengirim komentar: ' + err.message });
   }
 });
 
@@ -2342,7 +2356,7 @@ async function startServer() {
 \x1b[1m\x1b[32m═══════════════════════════════════════\x1b[0m
 🌐 Server: http://${HOST}:${PORT}
 👤 Developer: ${DEVELOPER}
-✅ Semua data tersimpan di GitHub!
+✅ Semua data tersimpan di GitHub, komentar diperbaiki!
     `);
   });
 }
