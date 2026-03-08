@@ -16,6 +16,7 @@ const flash = require('connect-flash');
 const Database = require('better-sqlite3');
 const crypto = require('crypto');
 const path = require('path');
+const { Octokit } = require('@octokit/rest');
 const config = require('./setting.js');
 
 // ==================== KONFIGURASI ====================
@@ -26,6 +27,12 @@ const SESSION_SECRET = config.SESSION_SECRET || 'novabot-super-secret-2026';
 const VERSION = config.VERSI_WEB || '1.0';
 const DEVELOPER = config.DEVELOPER || '@Novabot403';
 const SITE_NAME = config.SITE_NAME || 'NovaBot API';
+
+// GitHub config
+const GITHUB_TOKEN = config.GITHUB_TOKEN;
+const GITHUB_REPO = config.GITHUB_REPO; // format: "owner/repo"
+const GITHUB_BRANCH = config.GITHUB_BRANCH || 'main';
+const GITHUB_PATH = config.GITHUB_PATH || 'file'; // folder in repo
 
 // HTTPS Agent untuk Pinterest
 const httpsAgent = new https.Agent({
@@ -67,6 +74,95 @@ try {
 } catch (err) {
   console.error('Failed to open database:', err.message);
   process.exit(1);
+}
+
+// ==================== GITHUB BACKUP HELPER ====================
+const octokit = new Octokit({ auth: GITHUB_TOKEN });
+const [owner, repo] = GITHUB_REPO.split('/');
+
+async function backupCollectionToGitHub(collection, records) {
+  const filePath = `${GITHUB_PATH}/${collection}.json`.replace(/\/+/g, '/');
+  try {
+    // Coba ambil file yang sudah ada (untuk dapat sha)
+    let sha;
+    try {
+      const { data } = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: filePath,
+        ref: GITHUB_BRANCH,
+      });
+      sha = data.sha;
+    } catch (e) {
+      // File belum ada, sha undefined
+    }
+
+    // Simpan data baru
+    await octokit.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: filePath,
+      message: `Update ${collection} - ${new Date().toISOString()}`,
+      content: Buffer.from(JSON.stringify(records, null, 2)).toString('base64'),
+      branch: GITHUB_BRANCH,
+      sha,
+    });
+    console.log(`GitHub backup sukses: ${collection}`);
+  } catch (error) {
+    console.error(`GitHub backup gagal untuk ${collection}:`, error.message);
+  }
+}
+
+async function backupUserToGitHub(userData) {
+  try {
+    // Ambil semua users dari GitHub (jika ada)
+    let existing = [];
+    try {
+      const { data } = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: `${GITHUB_PATH}/users.json`,
+        ref: GITHUB_BRANCH,
+      });
+      const content = Buffer.from(data.content, 'base64').toString();
+      existing = JSON.parse(content);
+    } catch (e) {
+      // file belum ada, array kosong
+    }
+
+    // Cari user berdasarkan id, update jika ada
+    const index = existing.findIndex(u => u.id === userData.id);
+    if (index !== -1) {
+      existing[index] = { ...existing[index], ...userData };
+    } else {
+      existing.push(userData);
+    }
+
+    await backupCollectionToGitHub('users', existing);
+  } catch (error) {
+    console.error('Gagal backup user ke GitHub:', error.message);
+  }
+}
+
+async function backupCommentToGitHub(commentData) {
+  try {
+    let existing = [];
+    try {
+      const { data } = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: `${GITHUB_PATH}/comments.json`,
+        ref: GITHUB_BRANCH,
+      });
+      const content = Buffer.from(data.content, 'base64').toString();
+      existing = JSON.parse(content);
+    } catch (e) {}
+
+    existing.push(commentData);
+    await backupCollectionToGitHub('comments', existing);
+  } catch (error) {
+    console.error('Gagal backup komentar ke GitHub:', error.message);
+  }
 }
 
 // ==================== PASSPORT CONFIGURATION ====================
@@ -322,7 +418,7 @@ app.get('/login', (req, res) => {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=0.65">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - ${SITE_NAME}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family: 'Rajdhani', sans-serif; }
@@ -626,7 +722,18 @@ app.post('/register', async (req, res) => {
   }
   const hashedPassword = await bcrypt.hash(password, 10);
   const stmt = db.prepare('INSERT INTO users (email, password, name, bio) VALUES (?, ?, ?, ?)');
-  stmt.run(email, hashedPassword, name, '');
+  const info = stmt.run(email, hashedPassword, name, '');
+  const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+
+  // Backup ke GitHub
+  backupUserToGitHub({
+    id: newUser.id,
+    email: newUser.email,
+    name: newUser.name,
+    bio: newUser.bio || '',
+    createdAt: newUser.createdAt,
+  }).catch(console.error);
+
   res.redirect('/login');
 });
 
@@ -651,7 +758,7 @@ app.get('/profile', isAuthenticated, (req, res) => {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=0.65">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Profil - ${SITE_NAME}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family: 'Rajdhani', sans-serif; }
@@ -948,13 +1055,24 @@ app.get('/profile', isAuthenticated, (req, res) => {
 });
 
 // Endpoint untuk update profil (nama dan bio)
-app.post('/profile', isAuthenticated, (req, res) => {
+app.post('/profile', isAuthenticated, async (req, res) => {
   const { name, bio } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Nama tidak boleh kosong' });
   }
   const stmt = db.prepare('UPDATE users SET name = ?, bio = ? WHERE id = ?');
   stmt.run(name, bio || '', req.user.id);
+  
+  // Ambil user terbaru untuk backup
+  const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  backupUserToGitHub({
+    id: updatedUser.id,
+    email: updatedUser.email,
+    name: updatedUser.name,
+    bio: updatedUser.bio || '',
+    createdAt: updatedUser.createdAt,
+  }).catch(console.error);
+
   res.json({ success: true });
 });
 
@@ -971,13 +1089,24 @@ app.get('/api/comments', isAuthenticated, (req, res) => {
   res.json(comments);
 });
 
-app.post('/api/comments', isAuthenticated, (req, res) => {
+app.post('/api/comments', isAuthenticated, async (req, res) => {
   const { comment } = req.body;
   if (!comment || comment.trim() === '') {
     return res.status(400).json({ error: 'Komentar tidak boleh kosong' });
   }
   const stmt = db.prepare('INSERT INTO comments (userId, comment) VALUES (?, ?)');
-  stmt.run(req.user.id, comment);
+  const info = stmt.run(req.user.id, comment);
+  
+  // Backup komentar
+  const newComment = {
+    id: info.lastInsertRowid,
+    userId: req.user.id,
+    userName: req.user.name,
+    comment,
+    createdAt: new Date().toISOString(),
+  };
+  backupCommentToGitHub(newComment).catch(console.error);
+
   res.json({ success: true });
 });
 
@@ -2067,6 +2196,6 @@ app.listen(PORT, HOST, () => {
 \x1b[1m\x1b[32m═══════════════════════════════════════\x1b[0m
 🌐 Server: http://${HOST}:${PORT}
 👤 Developer: ${DEVELOPER}
-✅ Profil dan komentar telah ditambahkan!
+✅ Profil, komentar, dan backup GitHub telah ditambahkan!
   `);
 });
