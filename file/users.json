@@ -7,5 +7,14 @@
     "bio": "Admin utama web 🤭",
     "photo": "https://raw.githubusercontent.com/novabot503/apinovabot/main/avatars/avatar_1_1773001726852.jpg",
     "createdAt": "2026-03-08T20:28:12.163Z"
+  },
+  {
+    "id": 2,
+    "email": "novabot40@gmail.com",
+    "password": "$2b$10$l6dTyk/S1FS0rfzSywA0Se05kBVvP55G2YfcMPRxWHw9d/aj/HiS6",
+    "name": "Botnet",
+    "bio": "",
+    "photo": "",
+    "createdAt": "2026-03-08T21:02:08.810Z"
   }
 ]
