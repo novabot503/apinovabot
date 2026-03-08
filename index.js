@@ -50,7 +50,6 @@ try {
       email TEXT UNIQUE,
       password TEXT,
       name TEXT,
-      photo TEXT,
       bio TEXT DEFAULT '',
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -328,7 +327,7 @@ app.get('/login', (req, res) => {
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family: 'Rajdhani', sans-serif; }
     body {
-      background: #0a0c14;
+      background: radial-gradient(circle at 10% 20%, #1a2a48, #0a0c14);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -336,13 +335,19 @@ app.get('/login', (req, res) => {
       color: #fff;
     }
     .login-box {
-      background: #0f1320;
-      border: 1px solid #1f2a40;
-      border-radius: 16px;
+      background: rgba(15, 19, 32, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid #2a3a60;
+      border-radius: 24px;
       padding: 40px;
       width: 400px;
-      box-shadow: 0 0 30px rgba(0,0,0,0.7);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 20px #5b8cff33;
       text-align: center;
+      animation: glow 3s infinite alternate;
+    }
+    @keyframes glow {
+      0% { box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 20px #5b8cff33; }
+      100% { box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 40px #5b8cff80; }
     }
     h2 {
       font-family: 'Orbitron', sans-serif;
@@ -350,6 +355,7 @@ app.get('/login', (req, res) => {
       margin-bottom: 10px;
       font-size: 28px;
       letter-spacing: 2px;
+      text-shadow: 0 0 10px #5b8cff;
     }
     .sub {
       color: #8a9bb0;
@@ -371,32 +377,40 @@ app.get('/login', (req, res) => {
     input {
       width: 100%;
       padding: 12px;
-      border-radius: 8px;
+      border-radius: 30px;
       border: 1px solid #1f2a40;
       background: #1a1f30;
       color: #fff;
       font-size: 14px;
+      transition: 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #5b8cff;
+      box-shadow: 0 0 10px #5b8cff;
     }
     button {
       width: 100%;
       padding: 12px;
-      background: #5b8cff;
+      background: linear-gradient(45deg, #5b8cff, #3a6df0);
       border: none;
-      border-radius: 8px;
+      border-radius: 30px;
       color: #000;
       font-weight: bold;
       cursor: pointer;
       margin: 10px 0;
       font-size: 16px;
+      transition: 0.2s;
     }
     button:hover {
-      filter: brightness(1.1);
+      transform: scale(1.02);
+      box-shadow: 0 0 20px #5b8cff;
     }
     .error {
       background: #ff3b30;
       color: #fff;
       padding: 10px;
-      border-radius: 8px;
+      border-radius: 30px;
       margin-bottom: 20px;
       font-size: 14px;
     }
@@ -458,7 +472,7 @@ app.get('/register', (req, res) => {
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family: 'Rajdhani', sans-serif; }
     body {
-      background: #0a0c14;
+      background: radial-gradient(circle at 10% 20%, #1a2a48, #0a0c14);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -466,13 +480,19 @@ app.get('/register', (req, res) => {
       color: #fff;
     }
     .register-box {
-      background: #0f1320;
-      border: 1px solid #1f2a40;
-      border-radius: 16px;
+      background: rgba(15, 19, 32, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid #2a3a60;
+      border-radius: 24px;
       padding: 40px;
       width: 400px;
-      box-shadow: 0 0 30px rgba(0,0,0,0.7);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 20px #5b8cff33;
       text-align: center;
+      animation: glow 3s infinite alternate;
+    }
+    @keyframes glow {
+      0% { box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 20px #5b8cff33; }
+      100% { box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 40px #5b8cff80; }
     }
     h2 {
       font-family: 'Orbitron', sans-serif;
@@ -480,6 +500,7 @@ app.get('/register', (req, res) => {
       margin-bottom: 10px;
       font-size: 28px;
       letter-spacing: 2px;
+      text-shadow: 0 0 10px #5b8cff;
     }
     .sub {
       color: #8a9bb0;
@@ -501,32 +522,40 @@ app.get('/register', (req, res) => {
     input {
       width: 100%;
       padding: 12px;
-      border-radius: 8px;
+      border-radius: 30px;
       border: 1px solid #1f2a40;
       background: #1a1f30;
       color: #fff;
       font-size: 14px;
+      transition: 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #5b8cff;
+      box-shadow: 0 0 10px #5b8cff;
     }
     button {
       width: 100%;
       padding: 12px;
-      background: #5b8cff;
+      background: linear-gradient(45deg, #5b8cff, #3a6df0);
       border: none;
-      border-radius: 8px;
+      border-radius: 30px;
       color: #000;
       font-weight: bold;
       cursor: pointer;
       margin: 10px 0;
       font-size: 16px;
+      transition: 0.2s;
     }
     button:hover {
-      filter: brightness(1.1);
+      transform: scale(1.02);
+      box-shadow: 0 0 20px #5b8cff;
     }
     .error {
       background: #ff3b30;
       color: #fff;
       padding: 10px;
-      border-radius: 8px;
+      border-radius: 30px;
       margin-bottom: 20px;
       font-size: 14px;
     }
@@ -596,9 +625,8 @@ app.post('/register', async (req, res) => {
     return res.redirect('/register');
   }
   const hashedPassword = await bcrypt.hash(password, 10);
-  const photo = getGravatarUrl(email);
-  const stmt = db.prepare('INSERT INTO users (email, password, name, photo, bio) VALUES (?, ?, ?, ?, ?)');
-  stmt.run(email, hashedPassword, name, photo, '');
+  const stmt = db.prepare('INSERT INTO users (email, password, name, bio) VALUES (?, ?, ?, ?)');
+  stmt.run(email, hashedPassword, name, '');
   res.redirect('/login');
 });
 
@@ -618,7 +646,7 @@ app.get('/logout', (req, res) => {
 // ==================== ROUTE PROFIL ====================
 app.get('/profile', isAuthenticated, (req, res) => {
   const user = req.user;
-  const photo = user.photo || getGravatarUrl(user.email);
+  const gravatar = getGravatarUrl(user.email, 150);
   const html = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -628,53 +656,78 @@ app.get('/profile', isAuthenticated, (req, res) => {
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family: 'Rajdhani', sans-serif; }
     body {
-      background: #0a0c14;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
+      background: radial-gradient(circle at 10% 20%, #1a2a48, #0a0c14);
       color: #fff;
+      min-height: 100vh;
       padding: 20px;
     }
     .profile-container {
-      background: #0f1320;
-      border: 1px solid #1f2a40;
-      border-radius: 16px;
-      padding: 40px;
-      width: 500px;
-      max-width: 100%;
-      box-shadow: 0 0 30px rgba(0,0,0,0.7);
+      max-width: 800px;
+      margin: 0 auto;
+      background: rgba(15, 19, 32, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid #2a3a60;
+      border-radius: 24px;
+      padding: 30px;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 20px #5b8cff33;
+      animation: glow 3s infinite alternate;
+    }
+    @keyframes glow {
+      0% { box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 20px #5b8cff33; }
+      100% { box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 40px #5b8cff80; }
+    }
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      color: #8a9bb0;
+      font-size: 28px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .close-btn:hover {
+      color: #fff;
+      transform: scale(1.1);
+    }
+    .save-btn {
+      position: absolute;
+      top: 20px;
+      right: 70px;
+      background: linear-gradient(45deg, #5b8cff, #3a6df0);
+      color: #000;
+      border: none;
+      padding: 8px 25px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .save-btn:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 20px #5b8cff;
     }
     h2 {
       font-family: 'Orbitron', sans-serif;
       color: #5b8cff;
+      margin-bottom: 30px;
+      font-size: 32px;
+      text-shadow: 0 0 10px #5b8cff;
+    }
+    .avatar-section {
       text-align: center;
       margin-bottom: 30px;
-      font-size: 28px;
     }
     .avatar {
       width: 120px;
       height: 120px;
       border-radius: 50%;
-      object-fit: cover;
       border: 4px solid #5b8cff;
-      margin: 0 auto 20px;
-      display: block;
-    }
-    .info {
-      background: #1a1f30;
-      border-radius: 12px;
-      padding: 20px;
-      margin: 20px 0;
-    }
-    .info p {
-      margin: 8px 0;
-      color: #a0b0c0;
-    }
-    .info strong {
-      color: #fff;
-      width: 80px;
-      display: inline-block;
+      box-shadow: 0 0 30px #5b8cff;
+      margin-bottom: 10px;
     }
     .form-group {
       margin-bottom: 20px;
@@ -687,40 +740,101 @@ app.get('/profile', isAuthenticated, (req, res) => {
     }
     input, textarea {
       width: 100%;
-      padding: 12px;
-      border-radius: 8px;
+      padding: 12px 20px;
+      border-radius: 30px;
       border: 1px solid #1f2a40;
       background: #1a1f30;
       color: #fff;
       font-size: 14px;
+      transition: 0.2s;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #5b8cff;
+      box-shadow: 0 0 10px #5b8cff;
     }
     textarea {
       resize: vertical;
       min-height: 80px;
     }
-    button {
-      background: #5b8cff;
+    .comment-section {
+      margin-top: 40px;
+      border-top: 1px solid #1f2a40;
+      padding-top: 20px;
+    }
+    .comment-section h3 {
+      font-family: 'Orbitron', sans-serif;
+      color: #5b8cff;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+    .comment-form {
+      margin-bottom: 30px;
+    }
+    .comment-form textarea {
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: 30px;
+      border: 1px solid #1f2a40;
+      background: #1a1f30;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .comment-form button {
+      background: linear-gradient(45deg, #5b8cff, #3a6df0);
       color: #000;
       border: none;
-      padding: 12px 30px;
-      border-radius: 40px;
-      font-size: 16px;
+      padding: 10px 30px;
+      border-radius: 30px;
+      font-size: 14px;
       font-weight: bold;
       cursor: pointer;
-      width: 100%;
       transition: 0.2s;
     }
-    button:hover {
-      filter: brightness(1.1);
+    .comment-form button:hover {
       transform: scale(1.02);
+      box-shadow: 0 0 20px #5b8cff;
     }
-    .logout-btn {
-      background: #ff3b30;
-      margin-top: 15px;
+    .comment-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .comment-item {
+      display: flex;
+      gap: 15px;
+      background: #1a1f30;
+      border-radius: 16px;
+      padding: 15px;
+      border: 1px solid #1f2a40;
+    }
+    .comment-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid #5b8cff;
+      object-fit: cover;
+    }
+    .comment-content {
+      flex: 1;
+    }
+    .comment-author {
+      font-weight: bold;
+      color: #5b8cff;
+    }
+    .comment-date {
+      font-size: 11px;
+      color: #8a9bb0;
+      margin-left: 10px;
+    }
+    .comment-text {
+      margin-top: 5px;
+      color: #ccc;
     }
     .footer {
       text-align: center;
-      margin-top: 30px;
+      margin-top: 40px;
       color: #5f6b7a;
       font-size: 12px;
     }
@@ -729,55 +843,131 @@ app.get('/profile', isAuthenticated, (req, res) => {
 </head>
 <body>
   <div class="profile-container">
+    <button class="close-btn" onclick="window.location.href='/'">✕</button>
+    <button class="save-btn" id="saveProfileBtn">💾 Simpan</button>
     <h2>👤 Profil Saya</h2>
-    <img src="${photo}" class="avatar" alt="Foto Profil">
-    <div class="info">
-      <p><strong>Email</strong> ${user.email}</p>
-      <p><strong>ID</strong> ${user.id}</p>
-      <p><strong>Bergabung</strong> ${new Date(user.createdAt).toLocaleDateString('id-ID')}</p>
+    
+    <div class="avatar-section">
+      <img src="${gravatar}" class="avatar" alt="Foto Profil">
     </div>
-    <form action="/profile" method="POST">
+
+    <form id="profileForm">
       <div class="form-group">
         <label>Nama</label>
-        <input type="text" name="name" value="${user.name}" required>
+        <input type="text" name="name" id="nameInput" value="${user.name}" required>
       </div>
       <div class="form-group">
         <label>Bio / Caption</label>
-        <textarea name="bio" placeholder="Tulis sesuatu tentang diri Anda...">${user.bio || ''}</textarea>
+        <textarea name="bio" id="bioInput">${user.bio || ''}</textarea>
       </div>
-      <button type="submit">💾 Simpan Perubahan</button>
     </form>
-    <form action="/logout" method="GET">
-      <button class="logout-btn" type="submit">🚪 Keluar</button>
-    </form>
+
+    <div class="comment-section">
+      <h3>💬 Diskusi Pengguna</h3>
+      <div class="comment-form">
+        <textarea id="commentInput" placeholder="Tulis komentar Anda..."></textarea>
+        <button onclick="postComment()">Kirim Komentar</button>
+      </div>
+      <div class="comment-list" id="commentList">
+        <p style="color:#8a9bb0; text-align:center;">Memuat komentar...</p>
+      </div>
+    </div>
+
     <div class="footer">
       <span>${SITE_NAME} v${VERSION}</span> • ${DEVELOPER}
     </div>
   </div>
+
+  <script>
+    document.getElementById('saveProfileBtn').addEventListener('click', async function() {
+      const name = document.getElementById('nameInput').value;
+      const bio = document.getElementById('bioInput').value;
+
+      const res = await fetch('/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, bio })
+      });
+      if (res.ok) {
+        alert('Profil berhasil disimpan!');
+      } else {
+        alert('Gagal menyimpan profil.');
+      }
+    });
+
+    async function loadComments() {
+      try {
+        const res = await fetch('/api/comments');
+        if (!res.ok) throw new Error('Gagal memuat komentar');
+        const comments = await res.json();
+        const list = document.getElementById('commentList');
+        if (comments.length === 0) {
+          list.innerHTML = '<p style="color:#8a9bb0; text-align:center;">Belum ada komentar. Jadilah yang pertama!</p>';
+          return;
+        }
+        list.innerHTML = comments.map(c => \`
+          <div class="comment-item">
+            <img src="\${c.gravatar}" class="comment-avatar" onerror="this.src='https://www.gravatar.com/avatar/?d=identicon'">
+            <div class="comment-content">
+              <div>
+                <span class="comment-author">\${c.name}</span>
+                <span class="comment-date">\${new Date(c.createdAt).toLocaleString('id-ID')}</span>
+              </div>
+              <div class="comment-text">\${c.comment}</div>
+            </div>
+          </div>
+        \`).join('');
+      } catch (err) {
+        document.getElementById('commentList').innerHTML = '<p style="color:#ff3b30; text-align:center;">Gagal memuat komentar.</p>';
+      }
+    }
+
+    async function postComment() {
+      const input = document.getElementById('commentInput');
+      const comment = input.value.trim();
+      if (!comment) return alert('Komentar tidak boleh kosong');
+      try {
+        const res = await fetch('/api/comments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comment })
+        });
+        if (!res.ok) throw new Error('Gagal mengirim komentar');
+        input.value = '';
+        loadComments();
+      } catch (err) {
+        alert('Gagal mengirim komentar: ' + err.message);
+      }
+    }
+
+    loadComments();
+  </script>
 </body>
 </html>`;
   res.send(html);
 });
 
+// Endpoint untuk update profil (nama dan bio)
 app.post('/profile', isAuthenticated, (req, res) => {
   const { name, bio } = req.body;
   if (!name) {
-    req.flash('error', 'Nama tidak boleh kosong');
-    return res.redirect('/profile');
+    return res.status(400).json({ error: 'Nama tidak boleh kosong' });
   }
   const stmt = db.prepare('UPDATE users SET name = ?, bio = ? WHERE id = ?');
   stmt.run(name, bio || '', req.user.id);
-  res.redirect('/profile');
+  res.json({ success: true });
 });
 
 // ==================== API KOMENTAR ====================
 app.get('/api/comments', isAuthenticated, (req, res) => {
   const comments = db.prepare(`
-    SELECT comments.*, users.name, users.photo 
+    SELECT comments.*, users.name, users.email 
     FROM comments 
     JOIN users ON comments.userId = users.id 
     ORDER BY comments.createdAt DESC
   `).all();
+  // Tambahkan gravatar
+  comments.forEach(c => c.gravatar = getGravatarUrl(c.email, 40));
   res.json(comments);
 });
 
@@ -789,6 +979,20 @@ app.post('/api/comments', isAuthenticated, (req, res) => {
   const stmt = db.prepare('INSERT INTO comments (userId, comment) VALUES (?, ?)');
   stmt.run(req.user.id, comment);
   res.json({ success: true });
+});
+
+// ==================== HAPUS AKUN ====================
+app.post('/delete-account', isAuthenticated, (req, res) => {
+  const { confirm } = req.body;
+  if (confirm !== 'DELETE') {
+    return res.status(400).json({ error: 'Konfirmasi tidak valid' });
+  }
+  const stmt = db.prepare('DELETE FROM users WHERE id = ?');
+  stmt.run(req.user.id);
+  req.logout(err => {
+    if (err) console.error(err);
+    res.json({ success: true });
+  });
 });
 
 // ==================== ROUTE API ====================
@@ -909,9 +1113,11 @@ app.get('/bratvid', async (req, res) => {
   }
 });
 
-// ==================== HALAMAN UTAMA ====================
+// ==================== HALAMAN UTAMA (LENGKAP) ====================
 app.get('/', (req, res) => {
   const user = req.user;
+  const gravatar = user ? getGravatarUrl(user.email, 40) : '';
+
   const html = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -936,6 +1142,7 @@ body {
   position: relative;
   overflow-x: hidden;
 }
+/* HEADER */
 .custom-header {
   position: sticky; top: 0; width: 100%; height: 55px;
   background: rgba(10, 12, 20, 0.95); backdrop-filter: blur(10px);
@@ -956,6 +1163,58 @@ body {
 .menu-btn.active span:nth-child(1) { transform: rotate(45deg) translate(6px, 6px); }
 .menu-btn.active span:nth-child(2) { opacity: 0; }
 .menu-btn.active span:nth-child(3) { transform: rotate(-45deg) translate(6px, -6px); }
+
+/* DROPDOWN */
+.user-dropdown {
+  position: relative;
+  display: inline-block;
+}
+.user-dropdown-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  background: #0f1320;
+  border: 1px solid #2a3a60;
+  border-radius: 12px;
+  min-width: 160px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.7);
+  z-index: 101;
+  overflow: hidden;
+}
+.user-dropdown-content a, .user-dropdown-content button {
+  color: #fff;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.user-dropdown-content a:hover, .user-dropdown-content button:hover {
+  background: #1a1f30;
+  color: #5b8cff;
+}
+.user-dropdown:hover .user-dropdown-content {
+  display: block;
+}
+.user-avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  border: 2px solid #5b8cff;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.user-avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px #5b8cff;
+}
+
+/* STATUS PANEL (SLIDE DOWN) */
 .status-panel {
   position: fixed;
   top: -100%;
@@ -977,6 +1236,8 @@ body {
   font-size: 24px;
   text-align: center;
 }
+
+/* METRIC CARDS */
 .metric-row {
   margin-bottom: 20px;
   background: #0b0e18;
@@ -1018,6 +1279,7 @@ body {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
 .status-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1032,8 +1294,12 @@ body {
 }
 .status-item .label { color: #8a9bb0; font-size: 12px; text-transform: uppercase; }
 .status-item .value { color: #fff; font-size: 18px; font-weight: bold; font-family: 'VT323'; }
+
+/* PAGE CONTAINER */
 .page-container { padding: 20px; transition: filter 0.3s; }
 .page-container.blur { filter: blur(3px); pointer-events: none; }
+
+/* HEADER CARD */
 .lux-header-card {
   background: linear-gradient(135deg, #1a2a48, #14233c);
   border-radius: 16px; padding: 20px; margin-bottom: 25px;
@@ -1041,10 +1307,14 @@ body {
 }
 .lux-header-card h2 { font-family: 'Orbitron'; font-size: 20px; color: #5b8cff; }
 .lux-header-card p { font-size: 14px; color: #a0b0c0; }
+
+/* SECTION TITLE */
 .lux-section-title {
   font-family: 'Orbitron'; font-size: 16px; color: #fff; margin-bottom: 15px;
   padding-left: 8px; border-left: 4px solid #5b8cff;
 }
+
+/* SLIDER */
 .slider-container {
   width: 100%; background: #101520; border-radius: 12px; overflow: hidden;
   border: 1px solid #1f2a40; margin-bottom: 25px; height: 150px;
@@ -1059,6 +1329,8 @@ body {
 }
 .slide-content h3 { font-family: 'Orbitron'; font-size: 14px; color: #fff; }
 .slide-content p { font-size: 12px; color: #ccc; }
+
+/* API ENDPOINT CARDS */
 .api-card { margin-bottom: 20px; }
 .api-endpoint {
   background: #101520;
@@ -1117,6 +1389,8 @@ body {
   font-size: 13px;
   margin-bottom: 12px;
 }
+
+/* TOMBOL START */
 .start-btn {
   background: #5b8cff;
   color: #000;
@@ -1135,6 +1409,8 @@ body {
   filter: brightness(1.1);
   transform: scale(1.02);
 }
+
+/* INPUT GROUP */
 .input-group {
   display: flex;
   gap: 10px;
@@ -1155,6 +1431,8 @@ body {
   outline: none;
   border-color: #5b8cff;
 }
+
+/* RESPONSE CONTAINER */
 .response-container {
   margin-top: 15px;
   padding: 12px;
@@ -1203,6 +1481,8 @@ body {
 }
 .badge.success { background: #00ff88; color: #000; }
 .badge.error { background: #ff3b30; color: #fff; }
+
+/* COPY JSON BUTTON */
 .copy-json-btn {
   background: #2a3a60;
   color: #fff;
@@ -1217,6 +1497,8 @@ body {
   gap: 4px;
 }
 .copy-json-btn:hover { background: #3a4a70; }
+
+/* DOWNLOAD BUTTON */
 .download-btn {
   background: #3a6df0;
   color: #fff;
@@ -1231,6 +1513,8 @@ body {
   gap: 4px;
 }
 .download-btn:hover { background: #2a5ac0; }
+
+/* FOOTER */
 .footer {
   text-align: center;
   padding: 20px;
@@ -1239,110 +1523,35 @@ body {
   font-size: 12px;
   margin-top: 20px;
 }
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-}
-.user-info a {
-  color: #5b8cff;
-  text-decoration: none;
-}
-.user-info a:hover {
-  text-decoration: underline;
-}
-.comment-section {
-  margin-top: 40px;
-  background: #0f1320;
-  border: 1px solid #1f2a40;
-  border-radius: 16px;
-  padding: 20px;
-}
-.comment-section h3 {
-  font-family: 'Orbitron', sans-serif;
-  color: #5b8cff;
-  margin-bottom: 20px;
-  font-size: 20px;
-}
-.comment-form {
-  margin-bottom: 30px;
-}
-.comment-form textarea {
-  width: 100%;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #1f2a40;
-  background: #1a1f30;
-  color: #fff;
-  font-size: 14px;
-  margin-bottom: 10px;
-  resize: vertical;
-}
-.comment-form button {
-  background: #5b8cff;
-  color: #000;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 30px;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-}
-.comment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.comment-item {
-  display: flex;
-  gap: 15px;
-  border-bottom: 1px solid #1f2a40;
-  padding-bottom: 15px;
-}
-.comment-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid #5b8cff;
-}
-.comment-content {
-  flex: 1;
-}
-.comment-author {
-  font-weight: bold;
-  color: #5b8cff;
-}
-.comment-date {
-  font-size: 11px;
-  color: #8a9bb0;
-  margin-left: 10px;
-}
-.comment-text {
-  margin-top: 5px;
-  color: #ccc;
-}
 </style>
 </head>
 <body>
 <div class="custom-header">
   <div class="header-title">${SITE_NAME}</div>
   <div style="display: flex; align-items: center; gap: 15px;">
-    <div class="user-info">
-      ${user ? `
-        <a href="/profile" style="color:#5b8cff;">Profil</a>
-        <a href="/logout" style="color:#ff3b30;">Logout</a>
-      ` : `
-        <a href="/login" style="color:#5b8cff;">Login</a>
-      `}
-    </div>
+    ${user ? `
+      <div class="user-dropdown">
+        <img src="${gravatar}" class="user-avatar" alt="Avatar">
+        <div class="user-dropdown-content">
+          <a href="/profile"><i class="fas fa-user"></i> Profil</a>
+          <a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+          <button onclick="confirmDelete()"><i class="fas fa-trash"></i> Hapus Akun</button>
+        </div>
+      </div>
+    ` : `
+      <a href="/login" style="color:#5b8cff; font-weight:bold;"><i class="fas fa-sign-in-alt"></i> Login</a>
+    `}
     <div class="menu-btn" id="menuBtn">
       <span></span><span></span><span></span>
     </div>
   </div>
 </div>
+
+<!-- STATUS PANEL (SLIDE DOWN) -->
 <div class="status-panel" id="statusPanel">
   <h3><i class="fas fa-chart-line"></i> SERVER STATUS</h3>
+  
+  <!-- CPU Load -->
   <div class="metric-row">
     <div class="metric-header">
       <span>CPU Load</span>
@@ -1360,6 +1569,8 @@ body {
       </svg>
     </div>
   </div>
+
+  <!-- Memory -->
   <div class="metric-row">
     <div class="metric-header">
       <span>Memory</span>
@@ -1377,6 +1588,8 @@ body {
       </svg>
     </div>
   </div>
+
+  <!-- Network -->
   <div class="metric-row">
     <div class="metric-header">
       <span>Network</span>
@@ -1394,13 +1607,17 @@ body {
       </svg>
     </div>
   </div>
+
+  <!-- Status Info Grid -->
   <div id="statusContent" class="status-grid">Memuat...</div>
 </div>
+
 <div class="page-container" id="pageContainer">
   <div class="lux-header-card">
     <h2>${SITE_NAME} Service</h2>
     <p>API untuk bot WhatsApp Novabot</p>
   </div>
+
   <div class="lux-section-title">Latest News</div>
   <div class="slider-container" id="newsSlider">
     <div class="slider-track">
@@ -1408,8 +1625,10 @@ body {
       <div class="slide"><video src="https://files.catbox.moe/sbwa8f.mp4" autoplay muted loop playsinline></video><div class="slide-content"><h3>Mudah & Cepat</h3><p>Integrasi dengan bot Anda</p></div></div>
     </div>
   </div>
+
   <div class="lux-section-title">API Endpoints</div>
   <div class="api-card">
+    <!-- WAIFU -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/waifu</span>
@@ -1421,6 +1640,8 @@ body {
       </div>
       <div id="waifuResponse" class="response-container"></div>
     </div>
+
+    <!-- NSFW -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/nsfw</span>
@@ -1432,6 +1653,8 @@ body {
       </div>
       <div id="nsfwResponse" class="response-container"></div>
     </div>
+
+    <!-- WEBZIP -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/webzip?url=</span>
@@ -1444,6 +1667,8 @@ body {
       </div>
       <div id="webzipResponse" class="response-container"></div>
     </div>
+
+    <!-- TIKTOK -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/tiktok?url=</span>
@@ -1456,6 +1681,8 @@ body {
       </div>
       <div id="tiktokResponse" class="response-container"></div>
     </div>
+
+    <!-- BRAT -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/brat?text=</span>
@@ -1468,6 +1695,8 @@ body {
       </div>
       <div id="bratResponse" class="response-container"></div>
     </div>
+
+    <!-- PINTEREST -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/pinterest?q=</span>
@@ -1480,6 +1709,8 @@ body {
       </div>
       <div id="pinterestResponse" class="response-container"></div>
     </div>
+
+    <!-- BRATVID -->
     <div class="api-endpoint">
       <div class="api-header">
         <span class="method">GET</span><span class="url">/bratvid?text=</span>
@@ -1493,37 +1724,25 @@ body {
       <div id="bratvidResponse" class="response-container"></div>
     </div>
   </div>
-  
-  <!-- KOMENTAR SECTION -->
-  <div class="lux-section-title">Komentar & Rating</div>
-  <div class="comment-section">
-    <h3>💬 Diskusi Pengguna</h3>
-    ${user ? `
-      <div class="comment-form">
-        <textarea id="commentInput" placeholder="Tulis komentar Anda..."></textarea>
-        <button onclick="postComment()">Kirim Komentar</button>
-      </div>
-    ` : `
-      <p style="color:#8a9bb0; text-align:center; margin-bottom:20px;">Silakan <a href="/login" style="color:#5b8cff;">login</a> untuk menulis komentar.</p>
-    `}
-    <div class="comment-list" id="commentList">
-      <p style="color:#8a9bb0; text-align:center;">Memuat komentar...</p>
-    </div>
-  </div>
-  
+
   <div class="footer">
     <p>© 2026 Novabot • <i class="fab fa-telegram"></i> ${DEVELOPER} • v${VERSION}</p>
   </div>
 </div>
+
 <script>
+// ==================== STATUS PANEL TOGGLE ====================
 const menuBtn = document.getElementById('menuBtn');
 const statusPanel = document.getElementById('statusPanel');
 const pageContainer = document.getElementById('pageContainer');
+
 menuBtn.addEventListener('click', () => {
   menuBtn.classList.toggle('active');
   statusPanel.classList.toggle('show');
   pageContainer.classList.toggle('blur');
 });
+
+// ==================== LOAD STATUS INFO ====================
 const statusContent = document.getElementById('statusContent');
 async function loadStatus() {
   try {
@@ -1545,6 +1764,8 @@ function formatUptime(s) {
 }
 loadStatus();
 setInterval(loadStatus, 30000);
+
+// ==================== SIMULASI NILAI CPU, MEMORY, NETWORK ====================
 setInterval(() => {
   const cpu = (Math.random() * 30).toFixed(1) + '%';
   const mem = Math.floor(Math.random() * 400) + ' MiB';
@@ -1553,6 +1774,8 @@ setInterval(() => {
   document.getElementById('memValue').innerText = mem;
   document.getElementById('netValue').innerText = net;
 }, 2000);
+
+// ==================== SLIDER ====================
 let slideIdx=0, slideInt;
 const slider=document.getElementById('newsSlider'), track=document.querySelector('.slider-track');
 function startSlider(){clearInterval(slideInt);slideInt=setInterval(()=>{slideIdx=(slideIdx+1)%2;updateSlide();},5000);}
@@ -1568,55 +1791,7 @@ slider.addEventListener('touchend',e=>{if(!isSwiping)return;isSwiping=false;cons
 }
 startSlider(); setupSlider();
 
-// Fungsi komentar
-async function loadComments() {
-  try {
-    const res = await fetch('/api/comments');
-    if (!res.ok) throw new Error('Gagal memuat komentar');
-    const comments = await res.json();
-    const list = document.getElementById('commentList');
-    if (comments.length === 0) {
-      list.innerHTML = '<p style="color:#8a9bb0; text-align:center;">Belum ada komentar. Jadilah yang pertama!</p>';
-      return;
-    }
-    list.innerHTML = comments.map(c => \`
-      <div class="comment-item">
-        <img src="\${c.photo || 'https://www.gravatar.com/avatar/?d=identicon'}" class="comment-avatar">
-        <div class="comment-content">
-          <div>
-            <span class="comment-author">\${c.name}</span>
-            <span class="comment-date">\${new Date(c.createdAt).toLocaleString('id-ID')}</span>
-          </div>
-          <div class="comment-text">\${c.comment}</div>
-        </div>
-      </div>
-    \`).join('');
-  } catch (err) {
-    document.getElementById('commentList').innerHTML = '<p style="color:#ff3b30; text-align:center;">Gagal memuat komentar.</p>';
-  }
-}
-
-async function postComment() {
-  const input = document.getElementById('commentInput');
-  const comment = input.value.trim();
-  if (!comment) return alert('Komentar tidak boleh kosong');
-  try {
-    const res = await fetch('/api/comments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ comment })
-    });
-    if (!res.ok) throw new Error('Gagal mengirim komentar');
-    input.value = '';
-    loadComments();
-  } catch (err) {
-    alert('Gagal mengirim komentar: ' + err.message);
-  }
-}
-
-loadComments();
-
-// Fungsi API test (sama seperti sebelumnya)
+// ==================== PINTEREST ====================
 async function testPinterest() {
   const query = document.getElementById('pinterestQuery').value.trim();
   if (!query) return alert('Masukkan kata kunci!');
@@ -1664,6 +1839,8 @@ async function testPinterest() {
     respDiv.classList.add('error');
   }
 }
+
+// ==================== WAIFU ====================
 async function testWaifu() {
   const respDiv = document.getElementById('waifuResponse');
   respDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
@@ -1682,6 +1859,8 @@ async function testWaifu() {
     respDiv.classList.add('error');
   }
 }
+
+// ==================== NSFW ====================
 async function testNsfw() {
   const respDiv = document.getElementById('nsfwResponse');
   respDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
@@ -1700,6 +1879,8 @@ async function testNsfw() {
     respDiv.classList.add('error');
   }
 }
+
+// ==================== WEBZIP ====================
 async function testWebzip() {
   const urlInput = document.getElementById('webzipUrl').value.trim();
   if (!urlInput) return alert('Masukkan URL!');
@@ -1725,6 +1906,8 @@ async function testWebzip() {
     respDiv.classList.add('error');
   }
 }
+
+// ==================== TIKTOK ====================
 async function testTiktok() {
   const urlInput = document.getElementById('tiktokUrl').value.trim();
   if (!urlInput) return alert('Masukkan URL TikTok!');
@@ -1770,6 +1953,8 @@ async function testTiktok() {
     respDiv.classList.add('error');
   }
 }
+
+// ==================== BRAT ====================
 async function testBrat() {
   const textInput = document.getElementById('bratText').value.trim();
   if (!textInput) return alert('Masukkan teks!');
@@ -1796,6 +1981,8 @@ async function testBrat() {
     respDiv.classList.add('error');
   }
 }
+
+// ==================== BRATVID ====================
 async function testBratvid() {
   const textInput = document.getElementById('bratvidText').value.trim();
   if (!textInput) return alert('Masukkan teks!');
@@ -1822,10 +2009,35 @@ async function testBratvid() {
     respDiv.classList.add('error');
   }
 }
+
+// ==================== COPY TEXT ====================
 function copyText(text, label) {
   if (label === 'json') text = decodeURIComponent(text);
   navigator.clipboard.writeText(text).then(() => alert('Teks disalin!'));
 }
+
+// ==================== HAPUS AKUN ====================
+function confirmDelete() {
+  if (confirm('Apakah Anda yakin ingin menghapus akun? Semua data akan hilang.')) {
+    const code = prompt('Ketik "DELETE" untuk konfirmasi penghapusan akun:');
+    if (code === 'DELETE') {
+      fetch('/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE' })
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          window.location.href = '/';
+        } else {
+          alert('Gagal menghapus akun.');
+        }
+      });
+    } else {
+      alert('Konfirmasi salah.');
+    }
+  }
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('video').forEach(v=>v.play().catch(()=>{}));
 });
@@ -1839,7 +2051,7 @@ document.addEventListener('keydown',e=>{
   res.send(html);
 });
 
-// ==================== ERROR HANDLER ====================
+// ==================== ERROR HANDLER GLOBAL ====================
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err.stack);
   res.status(500).json({ status: false, error: 'Terjadi kesalahan internal server.' });
