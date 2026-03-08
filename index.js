@@ -17,6 +17,7 @@ const Database = require('better-sqlite3');
 const crypto = require('crypto');
 const path = require('path');
 const { Octokit } = require('@octokit/rest');
+const multer = require('multer');
 const config = require('./setting.js');
 
 // ==================== KONFIGURASI ====================
@@ -28,11 +29,13 @@ const VERSION = config.VERSI_WEB || '1.0';
 const DEVELOPER = config.DEVELOPER || '@Novabot403';
 const SITE_NAME = config.SITE_NAME || 'NovaBot API';
 
-// GitHub config
-const GITHUB_TOKEN = config.GITHUB_TOKEN;
-const GITHUB_REPO = config.GITHUB_REPO; // format: "owner/repo"
-const GITHUB_BRANCH = config.GITHUB_BRANCH || 'main';
-const GITHUB_PATH = config.GITHUB_PATH || 'file'; // folder in repo
+// GitHub config (akan diinisialisasi async)
+let GITHUB_TOKEN = null;
+let octokit = null;
+let owner, repo;
+
+// Multer untuk upload file (memory storage)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }); // max 5MB
 
 // HTTPS Agent untuk Pinterest
 const httpsAgent = new https.Agent({
@@ -58,6 +61,7 @@ try {
       password TEXT,
       name TEXT,
       bio TEXT DEFAULT '',
+      photo TEXT DEFAULT '',
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -76,35 +80,69 @@ try {
   process.exit(1);
 }
 
-// ==================== GITHUB BACKUP HELPER ====================
-const octokit = new Octokit({ auth: GITHUB_TOKEN });
-const [owner, repo] = GITHUB_REPO.split('/');
+// ==================== GITHUB INITIALIZATION ====================
+async function initGithub() {
+  const tokenConfig = config.GITHUB_TOKEN;
+  if (!tokenConfig) {
+    console.warn('GITHUB_TOKEN tidak dikonfigurasi, fitur backup dinonaktifkan.');
+    return;
+  }
 
+  // Jika tokenConfig adalah URL (dimulai dengan http)
+  if (tokenConfig.startsWith('http://') || tokenConfig.startsWith('https://')) {
+    try {
+      console.log('Mengambil token GitHub dari URL:', tokenConfig);
+      const response = await axios.get(tokenConfig);
+      GITHUB_TOKEN = response.data.github_token;
+      if (!GITHUB_TOKEN) {
+        throw new Error('Token tidak ditemukan dalam response JSON');
+      }
+    } catch (error) {
+      console.error('Gagal mengambil token GitHub dari URL:', error.message);
+      return;
+    }
+  } else {
+    // Anggap langsung token
+    GITHUB_TOKEN = tokenConfig;
+  }
+
+  if (GITHUB_TOKEN) {
+    octokit = new Octokit({ auth: GITHUB_TOKEN });
+    const repoFull = config.GITHUB_REPO;
+    if (repoFull) {
+      [owner, repo] = repoFull.split('/');
+      console.log(`GitHub siap: owner=${owner}, repo=${repo}`);
+    } else {
+      console.warn('GITHUB_REPO tidak dikonfigurasi');
+    }
+  }
+}
+
+// ==================== GITHUB BACKUP HELPER ====================
 async function backupCollectionToGitHub(collection, records) {
-  const filePath = `${GITHUB_PATH}/${collection}.json`.replace(/\/+/g, '/');
+  if (!octokit || !owner || !repo) return;
+  const filePath = `${config.GITHUB_PATH}/${collection}.json`.replace(/\/+/g, '/');
   try {
-    // Coba ambil file yang sudah ada (untuk dapat sha)
     let sha;
     try {
       const { data } = await octokit.repos.getContent({
         owner,
         repo,
         path: filePath,
-        ref: GITHUB_BRANCH,
+        ref: config.GITHUB_BRANCH,
       });
       sha = data.sha;
     } catch (e) {
-      // File belum ada, sha undefined
+      // File belum ada
     }
 
-    // Simpan data baru
     await octokit.repos.createOrUpdateFileContents({
       owner,
       repo,
       path: filePath,
       message: `Update ${collection} - ${new Date().toISOString()}`,
       content: Buffer.from(JSON.stringify(records, null, 2)).toString('base64'),
-      branch: GITHUB_BRANCH,
+      branch: config.GITHUB_BRANCH,
       sha,
     });
     console.log(`GitHub backup sukses: ${collection}`);
@@ -114,23 +152,20 @@ async function backupCollectionToGitHub(collection, records) {
 }
 
 async function backupUserToGitHub(userData) {
+  if (!octokit) return;
   try {
-    // Ambil semua users dari GitHub (jika ada)
     let existing = [];
     try {
       const { data } = await octokit.repos.getContent({
         owner,
         repo,
-        path: `${GITHUB_PATH}/users.json`,
-        ref: GITHUB_BRANCH,
+        path: `${config.GITHUB_PATH}/users.json`,
+        ref: config.GITHUB_BRANCH,
       });
       const content = Buffer.from(data.content, 'base64').toString();
       existing = JSON.parse(content);
-    } catch (e) {
-      // file belum ada, array kosong
-    }
+    } catch (e) {}
 
-    // Cari user berdasarkan id, update jika ada
     const index = existing.findIndex(u => u.id === userData.id);
     if (index !== -1) {
       existing[index] = { ...existing[index], ...userData };
@@ -145,14 +180,15 @@ async function backupUserToGitHub(userData) {
 }
 
 async function backupCommentToGitHub(commentData) {
+  if (!octokit) return;
   try {
     let existing = [];
     try {
       const { data } = await octokit.repos.getContent({
         owner,
         repo,
-        path: `${GITHUB_PATH}/comments.json`,
-        ref: GITHUB_BRANCH,
+        path: `${config.GITHUB_PATH}/comments.json`,
+        ref: config.GITHUB_BRANCH,
       });
       const content = Buffer.from(data.content, 'base64').toString();
       existing = JSON.parse(content);
@@ -162,6 +198,29 @@ async function backupCommentToGitHub(commentData) {
     await backupCollectionToGitHub('comments', existing);
   } catch (error) {
     console.error('Gagal backup komentar ke GitHub:', error.message);
+  }
+}
+
+// Fungsi upload foto ke GitHub
+async function uploadAvatarToGitHub(userId, fileBuffer, fileName, mimeType) {
+  if (!octokit) throw new Error('GitHub tidak tersedia');
+  const ext = path.extname(fileName) || '.jpg';
+  const safeName = `avatar_${userId}_${Date.now()}${ext}`;
+  const filePath = `avatars/${safeName}`;
+  try {
+    await octokit.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: filePath,
+      message: `Upload avatar for user ${userId}`,
+      content: fileBuffer.toString('base64'),
+      branch: config.GITHUB_BRANCH,
+    });
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${config.GITHUB_BRANCH}/${filePath}`;
+    return rawUrl;
+  } catch (error) {
+    console.error('Gagal upload avatar ke GitHub:', error.message);
+    throw error;
   }
 }
 
@@ -721,8 +780,8 @@ app.post('/register', async (req, res) => {
     return res.redirect('/register');
   }
   const hashedPassword = await bcrypt.hash(password, 10);
-  const stmt = db.prepare('INSERT INTO users (email, password, name, bio) VALUES (?, ?, ?, ?)');
-  const info = stmt.run(email, hashedPassword, name, '');
+  const stmt = db.prepare('INSERT INTO users (email, password, name, bio, photo) VALUES (?, ?, ?, ?, ?)');
+  const info = stmt.run(email, hashedPassword, name, '', '');
   const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
 
   // Backup ke GitHub
@@ -731,6 +790,7 @@ app.post('/register', async (req, res) => {
     email: newUser.email,
     name: newUser.name,
     bio: newUser.bio || '',
+    photo: newUser.photo || '',
     createdAt: newUser.createdAt,
   }).catch(console.error);
 
@@ -753,7 +813,7 @@ app.get('/logout', (req, res) => {
 // ==================== ROUTE PROFIL ====================
 app.get('/profile', isAuthenticated, (req, res) => {
   const user = req.user;
-  const gravatar = getGravatarUrl(user.email, 150);
+  const photoUrl = user.photo || getGravatarUrl(user.email, 200);
   const html = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -784,7 +844,7 @@ app.get('/profile', isAuthenticated, (req, res) => {
       0% { box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 20px #5b8cff33; }
       100% { box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 40px #5b8cff80; }
     }
-    .close-btn {
+    .menu-btn {
       position: absolute;
       top: 20px;
       right: 20px;
@@ -794,47 +854,79 @@ app.get('/profile', isAuthenticated, (req, res) => {
       font-size: 28px;
       cursor: pointer;
       transition: 0.2s;
+      z-index: 10;
     }
-    .close-btn:hover {
+    .menu-btn:hover {
       color: #fff;
       transform: scale(1.1);
     }
-    .save-btn {
+    .dropdown-content {
+      display: none;
       position: absolute;
-      top: 20px;
-      right: 70px;
-      background: linear-gradient(45deg, #5b8cff, #3a6df0);
-      color: #000;
+      top: 60px;
+      right: 20px;
+      background: #0f1320;
+      border: 1px solid #2a3a60;
+      border-radius: 12px;
+      min-width: 160px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.7);
+      z-index: 100;
+      overflow: hidden;
+    }
+    .dropdown-content a, .dropdown-content button {
+      color: #fff;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: block;
+      background: none;
       border: none;
-      padding: 8px 25px;
-      border-radius: 30px;
+      width: 100%;
+      text-align: left;
       font-size: 14px;
-      font-weight: bold;
       cursor: pointer;
       transition: 0.2s;
     }
-    .save-btn:hover {
-      transform: scale(1.02);
-      box-shadow: 0 0 20px #5b8cff;
-    }
-    h2 {
-      font-family: 'Orbitron', sans-serif;
+    .dropdown-content a:hover, .dropdown-content button:hover {
+      background: #1a1f30;
       color: #5b8cff;
-      margin-bottom: 30px;
-      font-size: 32px;
-      text-shadow: 0 0 10px #5b8cff;
+    }
+    .show {
+      display: block;
     }
     .avatar-section {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
     .avatar {
-      width: 120px;
-      height: 120px;
+      width: 150px;
+      height: 150px;
       border-radius: 50%;
       border: 4px solid #5b8cff;
       box-shadow: 0 0 30px #5b8cff;
-      margin-bottom: 10px;
+      object-fit: cover;
+    }
+    .user-name {
+      font-size: 28px;
+      font-family: 'Orbitron', sans-serif;
+      color: #5b8cff;
+      text-align: center;
+      margin: 10px 0 5px;
+    }
+    .user-bio {
+      font-size: 16px;
+      color: #ccc;
+      text-align: center;
+      margin-bottom: 30px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+      word-wrap: break-word;
+    }
+    .edit-form {
+      display: none;
+      margin-top: 30px;
+      border-top: 1px solid #1f2a40;
+      padding-top: 20px;
     }
     .form-group {
       margin-bottom: 20px;
@@ -863,6 +955,21 @@ app.get('/profile', isAuthenticated, (req, res) => {
     textarea {
       resize: vertical;
       min-height: 80px;
+    }
+    button {
+      background: linear-gradient(45deg, #5b8cff, #3a6df0);
+      color: #000;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 20px #5b8cff;
     }
     .comment-section {
       margin-top: 40px;
@@ -897,11 +1004,6 @@ app.get('/profile', isAuthenticated, (req, res) => {
       font-size: 14px;
       font-weight: bold;
       cursor: pointer;
-      transition: 0.2s;
-    }
-    .comment-form button:hover {
-      transform: scale(1.02);
-      box-shadow: 0 0 20px #5b8cff;
     }
     .comment-list {
       display: flex;
@@ -950,24 +1052,37 @@ app.get('/profile', isAuthenticated, (req, res) => {
 </head>
 <body>
   <div class="profile-container">
-    <button class="close-btn" onclick="window.location.href='/'">✕</button>
-    <button class="save-btn" id="saveProfileBtn">💾 Simpan</button>
-    <h2>👤 Profil Saya</h2>
-    
-    <div class="avatar-section">
-      <img src="${gravatar}" class="avatar" alt="Foto Profil">
+    <button class="menu-btn" id="menuBtn">☰</button>
+    <div class="dropdown-content" id="dropdown">
+      <a href="#" id="editProfileBtn">Edit Profil</a>
+      <a href="/logout">Keluar</a>
     </div>
 
-    <form id="profileForm">
-      <div class="form-group">
-        <label>Nama</label>
-        <input type="text" name="name" id="nameInput" value="${user.name}" required>
-      </div>
-      <div class="form-group">
-        <label>Bio / Caption</label>
-        <textarea name="bio" id="bioInput">${user.bio || ''}</textarea>
-      </div>
-    </form>
+    <div class="avatar-section">
+      <img src="${photoUrl}" class="avatar" id="avatarPreview" alt="Foto Profil">
+    </div>
+    <div class="user-name" id="displayName">${user.name}</div>
+    <div class="user-bio" id="displayBio">${user.bio || 'Belum ada bio.'}</div>
+
+    <!-- Form Edit (hidden by default) -->
+    <div class="edit-form" id="editForm">
+      <h3 style="font-family:'Orbitron'; color:#5b8cff; margin-bottom:20px;">Edit Profil</h3>
+      <form id="profileEditForm" enctype="multipart/form-data">
+        <div class="form-group">
+          <label>Nama</label>
+          <input type="text" name="name" id="editName" value="${user.name}" required>
+        </div>
+        <div class="form-group">
+          <label>Bio</label>
+          <textarea name="bio" id="editBio">${user.bio || ''}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Foto Profil</label>
+          <input type="file" name="photo" id="editPhoto" accept="image/*">
+        </div>
+        <button type="submit">Simpan Perubahan</button>
+      </form>
+    </div>
 
     <div class="comment-section">
       <h3>💬 Diskusi Pengguna</h3>
@@ -986,22 +1101,49 @@ app.get('/profile', isAuthenticated, (req, res) => {
   </div>
 
   <script>
-    document.getElementById('saveProfileBtn').addEventListener('click', async function() {
-      const name = document.getElementById('nameInput').value;
-      const bio = document.getElementById('bioInput').value;
+    // Dropdown menu
+    const menuBtn = document.getElementById('menuBtn');
+    const dropdown = document.getElementById('dropdown');
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('show');
+    });
+    window.addEventListener('click', () => {
+      dropdown.classList.remove('show');
+    });
+
+    // Toggle edit form
+    document.getElementById('editProfileBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('editForm').style.display = 'block';
+      dropdown.classList.remove('show');
+    });
+
+    // Handle edit form submission with photo upload
+    document.getElementById('profileEditForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('name', document.getElementById('editName').value);
+      formData.append('bio', document.getElementById('editBio').value);
+      const photoFile = document.getElementById('editPhoto').files[0];
+      if (photoFile) {
+        formData.append('photo', photoFile);
+      }
 
       const res = await fetch('/profile', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, bio })
+        body: formData
       });
-      if (res.ok) {
-        alert('Profil berhasil disimpan!');
+      const result = await res.json();
+      if (result.success) {
+        alert('Profil berhasil diperbarui!');
+        location.reload(); // refresh untuk menampilkan data baru
       } else {
-        alert('Gagal menyimpan profil.');
+        alert('Gagal: ' + result.error);
       }
     });
 
+    // Load comments
     async function loadComments() {
       try {
         const res = await fetch('/api/comments');
@@ -1054,22 +1196,32 @@ app.get('/profile', isAuthenticated, (req, res) => {
   res.send(html);
 });
 
-// Endpoint untuk update profil (nama dan bio)
-app.post('/profile', isAuthenticated, async (req, res) => {
+// Endpoint untuk update profil (dengan upload foto)
+app.post('/profile', isAuthenticated, upload.single('photo'), async (req, res) => {
   const { name, bio } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Nama tidak boleh kosong' });
   }
-  const stmt = db.prepare('UPDATE users SET name = ?, bio = ? WHERE id = ?');
-  stmt.run(name, bio || '', req.user.id);
-  
-  // Ambil user terbaru untuk backup
+
+  let photoUrl = req.user.photo; // tetap pakai yang lama jika tidak ada upload
+  if (req.file) {
+    try {
+      photoUrl = await uploadAvatarToGitHub(req.user.id, req.file.buffer, req.file.originalname, req.file.mimetype);
+    } catch (err) {
+      return res.status(500).json({ error: 'Gagal upload foto' });
+    }
+  }
+
+  const stmt = db.prepare('UPDATE users SET name = ?, bio = ?, photo = ? WHERE id = ?');
+  stmt.run(name, bio || '', photoUrl, req.user.id);
+
   const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   backupUserToGitHub({
     id: updatedUser.id,
     email: updatedUser.email,
     name: updatedUser.name,
     bio: updatedUser.bio || '',
+    photo: updatedUser.photo || '',
     createdAt: updatedUser.createdAt,
   }).catch(console.error);
 
@@ -1079,13 +1231,15 @@ app.post('/profile', isAuthenticated, async (req, res) => {
 // ==================== API KOMENTAR ====================
 app.get('/api/comments', isAuthenticated, (req, res) => {
   const comments = db.prepare(`
-    SELECT comments.*, users.name, users.email 
+    SELECT comments.*, users.name, users.email, users.photo
     FROM comments 
     JOIN users ON comments.userId = users.id 
     ORDER BY comments.createdAt DESC
   `).all();
-  // Tambahkan gravatar
-  comments.forEach(c => c.gravatar = getGravatarUrl(c.email, 40));
+  // Tambahkan gravatar jika tidak punya foto
+  comments.forEach(c => {
+    c.gravatar = c.photo || getGravatarUrl(c.email, 40);
+  });
   res.json(comments);
 });
 
@@ -1096,8 +1250,7 @@ app.post('/api/comments', isAuthenticated, async (req, res) => {
   }
   const stmt = db.prepare('INSERT INTO comments (userId, comment) VALUES (?, ?)');
   const info = stmt.run(req.user.id, comment);
-  
-  // Backup komentar
+
   const newComment = {
     id: info.lastInsertRowid,
     userId: req.user.id,
@@ -1245,7 +1398,7 @@ app.get('/bratvid', async (req, res) => {
 // ==================== HALAMAN UTAMA (LENGKAP) ====================
 app.get('/', (req, res) => {
   const user = req.user;
-  const gravatar = user ? getGravatarUrl(user.email, 40) : '';
+  const gravatar = user ? (user.photo || getGravatarUrl(user.email, 40)) : '';
 
   const html = `<!DOCTYPE html>
 <html lang="id">
@@ -2186,9 +2339,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ status: false, error: 'Terjadi kesalahan internal server.' });
 });
 
-// ==================== START SERVER ====================
-app.listen(PORT, HOST, () => {
-  console.log(`
+// ==================== START SERVER (ASYNC) ====================
+async function startServer() {
+  await initGithub(); // Ambil token GitHub terlebih dahulu
+  app.listen(PORT, HOST, () => {
+    console.log(`
 \x1b[1m\x1b[34m╔╗ ╦  ╔═\x1b[0m╗╔═╗╔═╗╦═╗╔═╗ \x1b[31m
 \x1b[1m\x1b[34m╠╩╗║  ╠═╣╔═╝\x1b[0m║╣ ╠╦╝╚═╗ \x1b[31m
 \x1b[1m\x1b[34m╚═╝╩═╝╩ ╩╚═╝╚═╝╩\x1b[0m╚═╚═╝ \x1b[31m
@@ -2196,6 +2351,12 @@ app.listen(PORT, HOST, () => {
 \x1b[1m\x1b[32m═══════════════════════════════════════\x1b[0m
 🌐 Server: http://${HOST}:${PORT}
 👤 Developer: ${DEVELOPER}
-✅ Profil, komentar, dan backup GitHub telah ditambahkan!
-  `);
+✅ Profil dengan upload foto, komentar, backup GitHub siap!
+    `);
+  });
+}
+
+startServer().catch(err => {
+  console.error('Gagal memulai server:', err);
+  process.exit(1);
 });

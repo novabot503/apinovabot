@@ -9,7 +9,7 @@ module.exports = {
     URL: 'https://apinovabot.vercel.app',
     SESSION_SECRET: 'novabot-super-secret-2026',
     SITE_NAME: 'NovaBot API',
-    GITHUB_TOKEN: "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",
+    GITHUB_TOKEN: "https://files.catbox.moe/hg44c0.json",
     GITHUB_REPO: "novabot503/apinovabot",
     GITHUB_BRANCH: "main",
     GITHUB_PATH: "file"
