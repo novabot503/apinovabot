@@ -12,5 +12,12 @@
     "content": "Iya",
     "parentId": 1,
     "createdAt": "2026-03-09T04:42:12.713Z"
+  },
+  {
+    "id": 3,
+    "userId": 1,
+    "content": "Halo semuanya",
+    "parentId": null,
+    "createdAt": "2026-03-09T07:21:25.637Z"
   }
 ]
