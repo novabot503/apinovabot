@@ -1260,7 +1260,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
     .messages-container {
       flex: 1;
       overflow-y: auto;
-      padding: 20px;
+      padding: 20px 20px 10px 20px; /* mengurangi padding bottom agar input lebih naik */
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -2821,7 +2821,7 @@ async function startServer() {
 \x1b[1m\x1b[32m═══════════════════════════════════════\x1b[0m
 🌐 Server: http://${HOST}:${PORT}
 👤 Developer: ${DEVELOPER}
-✅ Chat grup modern dengan swipe to reply, waktu di bawah teks, bubble transparan!
+✅ Chat grup modern dengan swipe to reply, waktu di bawah teks, bubble transparan, input dinaikkan!
     `);
   });
 }
