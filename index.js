@@ -1262,7 +1262,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
-      padding: 20px 20px 8px 20px;
+      padding: 20px 20px 20px 20px; /* padding-bottom diperbesar */
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -1469,13 +1469,13 @@ app.get('/chat', isAuthenticated, (req, res) => {
       box-shadow: 0 6px 20px rgba(91, 140, 255, 0.5);
     }
     
-    /* Footer - lebih tinggi agar teks terlihat */
+    /* Footer - lebih tinggi dan jelas */
     .footer {
       text-align: center;
-      padding: 8px 20px;
+      padding: 12px 20px;
       border-top: 1px solid #1f2a40;
       color: #8a9bb0;
-      font-size: 12px;
+      font-size: 14px;
       line-height: 1.5;
       background: rgba(15, 19, 32, 0.8);
       backdrop-filter: blur(12px);
