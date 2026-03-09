@@ -1201,7 +1201,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=0.70">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Chat Grup - ${SITE_NAME}</title>
   <style>
     * {
@@ -1465,6 +1465,22 @@ app.get('/chat', isAuthenticated, (req, res) => {
       box-shadow: 0 6px 20px rgba(91, 140, 255, 0.5);
     }
     
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 10px 20px;
+      border-top: 1px solid #1f2a40;
+      color: #8a9bb0;
+      font-size: 12px;
+      background: rgba(15, 19, 32, 0.8);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+    
+    .footer span {
+      color: #00ff88;
+    }
+    
     /* Scrollbar kustom */
     .messages-container::-webkit-scrollbar {
       width: 6px;
@@ -1503,6 +1519,10 @@ app.get('/chat', isAuthenticated, (req, res) => {
   <div class="input-area">
     <input type="text" id="messageInput" placeholder="Tulis pesan...">
     <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+  </div>
+  
+  <div class="footer">
+    <p>© 2026 Novabot • <i class="fab fa-telegram"></i> ${DEVELOPER} • v${VERSION}</p>
   </div>
 
   <script>
@@ -2821,7 +2841,7 @@ async function startServer() {
 \x1b[1m\x1b[32m═══════════════════════════════════════\x1b[0m
 🌐 Server: http://${HOST}:${PORT}
 👤 Developer: ${DEVELOPER}
-✅ Chat grup modern dengan swipe to reply, waktu di bawah teks, bubble transparan, zoom diaktifkan!
+✅ Chat grup modern dengan swipe to reply, waktu di bawah teks, bubble transparan, input dinaikkan dengan footer!
     `);
   });
 }
