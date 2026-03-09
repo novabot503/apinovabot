@@ -1465,32 +1465,6 @@ app.get('/chat', isAuthenticated, (req, res) => {
       box-shadow: 0 6px 20px rgba(91, 140, 255, 0.5);
     }
     
-    /* Animasi loading */
-    .typing-indicator {
-      display: flex;
-      gap: 4px;
-      padding: 10px;
-      background: rgba(26, 31, 48, 0.4);
-      border-radius: 20px;
-      width: fit-content;
-    }
-    
-    .typing-indicator span {
-      width: 8px;
-      height: 8px;
-      background: #5b8cff;
-      border-radius: 50%;
-      animation: typing 1.4s infinite;
-    }
-    
-    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-    
-    @keyframes typing {
-      0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
-      30% { transform: translateY(-8px); opacity: 1; }
-    }
-    
     /* Scrollbar kustom */
     .messages-container::-webkit-scrollbar {
       width: 6px;
@@ -1538,7 +1512,6 @@ app.get('/chat', isAuthenticated, (req, res) => {
     let touchStartY = 0;
     let swipedMessageId = null;
 
-    // Deteksi swipe ke kiri (seperti WhatsApp)
     function handleTouchStart(e) {
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
@@ -1553,17 +1526,14 @@ app.get('/chat', isAuthenticated, (req, res) => {
       const diffX = touchStartX - touchEndX;
       const diffY = Math.abs(touchStartY - touchEndY);
       
-      // Swipe horizontal yang cukup (geser ke kiri) dan bukan scroll vertikal
       if (diffX > 50 && diffY < 50) {
-        e.preventDefault(); // Cegah scroll
+        e.preventDefault();
         const messageDiv = e.currentTarget;
         const messageContent = messageDiv.querySelector('.message-text')?.innerText || '';
         const messageId = messageDiv.dataset.messageId;
         
-        // Trigger reply
         setReply(messageId, messageContent);
         
-        // Reset touch
         touchStartX = 0;
       }
     }
@@ -1584,36 +1554,33 @@ app.get('/chat', isAuthenticated, (req, res) => {
           msgDiv.className = 'message' + (msg.userId === currentUser.id ? ' own' : '');
           msgDiv.dataset.messageId = msg.id;
           
-          // Tambahkan event listener untuk swipe
           msgDiv.addEventListener('touchstart', handleTouchStart, { passive: false });
           msgDiv.addEventListener('touchmove', handleTouchMove, { passive: false });
           msgDiv.addEventListener('touchend', handleTouchEnd);
           
-          // Format waktu (HH:MM)
           const time = new Date(msg.createdAt).toLocaleTimeString('id-ID', { 
             hour: '2-digit', 
             minute: '2-digit',
             hour12: false 
           });
           
-          // Buat HTML pesan
           let replyHtml = '';
           if (msg.parentId && msg.replyContent) {
-            replyHtml = `<div class="message-reply"><i class="fas fa-reply"></i> <strong>Membalas:</strong> ${msg.replyContent}</div>`;
+            replyHtml = \`<div class="message-reply"><i class="fas fa-reply"></i> <strong>Membalas:</strong> \${msg.replyContent}</div>\`;
           }
           
-          msgDiv.innerHTML = `
+          msgDiv.innerHTML = \`
             <div class="message-avatar">
-              <img src="${msg.userPhoto || 'https://www.gravatar.com/avatar/?d=identicon'}" 
+              <img src="\${msg.userPhoto || 'https://www.gravatar.com/avatar/?d=identicon'}" 
                    onerror="this.src='https://www.gravatar.com/avatar/?d=identicon'">
             </div>
             <div class="message-content">
-              ${replyHtml}
-              <span class="message-author">${msg.userName}</span>
-              <div class="message-text">${msg.content}</div>
-              <span class="message-time">${time}</span>
+              \${replyHtml}
+              <span class="message-author">\${msg.userName}</span>
+              <div class="message-text">\${msg.content}</div>
+              <span class="message-time">\${time}</span>
             </div>
-          `;
+          \`;
           
           container.appendChild(msgDiv);
         });
@@ -1628,11 +1595,9 @@ app.get('/chat', isAuthenticated, (req, res) => {
       replyTo = id;
       document.getElementById('replyIndicator').style.display = 'flex';
       
-      // Batasi panjang teks yang ditampilkan
       const displayText = content.length > 50 ? content.substring(0, 50) + '…' : content;
-      document.getElementById('replyText').innerHTML = `<i class="fas fa-reply"></i> Membalas: ${displayText}`;
+      document.getElementById('replyText').innerHTML = \`<i class="fas fa-reply"></i> Membalas: \${displayText}\`;
       
-      // Fokus ke input
       document.getElementById('messageInput').focus();
     }
 
@@ -1661,12 +1626,10 @@ app.get('/chat', isAuthenticated, (req, res) => {
       }
     }
 
-    // Kirim pesan dengan Enter
     document.getElementById('messageInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') sendMessage();
     });
 
-    // Auto refresh setiap 3 detik
     loadMessages();
     setInterval(loadMessages, 3000);
   </script>
