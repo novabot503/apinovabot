@@ -1526,10 +1526,6 @@ app.get('/chat', isAuthenticated, (req, res) => {
     <input type="text" id="messageInput" placeholder="Tulis pesan...">
     <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
   </div>
-  
-  <div class="footer">
-    <p>© 2026 Novabot • <i class="fab fa-telegram"></i> ${DEVELOPER} • v${VERSION}</p>
-  </div>
 
   <script>
     let currentUser = { id: ${user.id}, name: '${user.name}', photo: '${photoUrl}' };
