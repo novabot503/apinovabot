@@ -1231,6 +1231,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
       align-items: center;
       justify-content: space-between;
       z-index: 10;
+      flex-shrink: 0;
     }
     
     .chat-header h2 {
@@ -1258,9 +1259,10 @@ app.get('/chat', isAuthenticated, (req, res) => {
     
     /* Messages container dengan scroll halus */
     .messages-container {
-      flex: 1;
+      flex: 1 1 auto;
+      min-height: 0;
       overflow-y: auto;
-      padding: 20px 20px 5px 20px; /* padding-bottom dikurangi */
+      padding: 20px 20px 8px 20px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -1387,6 +1389,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
       align-items: center;
       justify-content: space-between;
       z-index: 10;
+      flex-shrink: 0;
     }
     
     .reply-indicator span {
@@ -1423,6 +1426,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
       display: flex;
       gap: 10px;
       z-index: 10;
+      flex-shrink: 0;
     }
     
     .input-area input {
@@ -1465,16 +1469,18 @@ app.get('/chat', isAuthenticated, (req, res) => {
       box-shadow: 0 6px 20px rgba(91, 140, 255, 0.5);
     }
     
-    /* Footer - lebih ramping */
+    /* Footer - lebih tinggi agar teks terlihat */
     .footer {
       text-align: center;
-      padding: 5px 20px; /* padding dikurangi */
+      padding: 8px 20px;
       border-top: 1px solid #1f2a40;
       color: #8a9bb0;
       font-size: 12px;
+      line-height: 1.5;
       background: rgba(15, 19, 32, 0.8);
       backdrop-filter: blur(12px);
       z-index: 10;
+      flex-shrink: 0;
     }
     
     .footer span {
