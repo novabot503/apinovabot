@@ -204,7 +204,33 @@ async function updateUser(id, updatedFields) {
   return users[index];
 }
 
-// ==================== FUNGSI MANAJEMEN KOMENTAR ====================
+// ==================== FUNGSI MANAJEMEN PESAN (CHAT) ====================
+async function getMessages() {
+  const filePath = `${GITHUB_PATH}/messages.json`.replace(/\/+/g, '/');
+  const { content } = await readGitHubFile(filePath);
+  return (content || []).map(m => ({ ...m, parentId: m.parentId || null }));
+}
+
+async function saveMessages(messages) {
+  const filePath = `${GITHUB_PATH}/messages.json`.replace(/\/+/g, '/');
+  await writeGitHubFileWithRetry(filePath, messages);
+}
+
+async function addMessage(messageData) {
+  const messages = await getMessages();
+  const newId = messages.length > 0 ? Math.max(...messages.map(m => m.id)) + 1 : 1;
+  const newMessage = {
+    id: newId,
+    ...messageData,
+    parentId: messageData.parentId || null,
+    createdAt: new Date().toISOString()
+  };
+  messages.push(newMessage);
+  await saveMessages(messages);
+  return newMessage;
+}
+
+// ==================== FUNGSI MANAJEMEN KOMENTAR (LAMA) ====================
 async function getComments() {
   const filePath = `${GITHUB_PATH}/comments.json`.replace(/\/+/g, '/');
   const { content } = await readGitHubFile(filePath);
@@ -858,7 +884,7 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// ==================== ROUTE PROFIL ====================
+// ==================== ROUTE PROFIL (dengan tombol Join Grup) ====================
 app.get('/profile', isAuthenticated, (req, res) => {
   const user = req.user;
   const photoUrl = user.photo || getGravatarUrl(user.email, 200);
@@ -1019,75 +1045,24 @@ app.get('/profile', isAuthenticated, (req, res) => {
       transform: scale(1.02);
       box-shadow: 0 0 20px #5b8cff;
     }
-    .comment-section {
-      margin-top: 40px;
-      border-top: 1px solid #1f2a40;
-      padding-top: 20px;
+    .join-group {
+      text-align: center;
+      margin-top: 30px;
     }
-    .comment-section h3 {
-      font-family: 'Orbitron', sans-serif;
-      color: #5b8cff;
-      margin-bottom: 20px;
-      font-size: 24px;
-    }
-    .comment-form {
-      margin-bottom: 30px;
-    }
-    .comment-form textarea {
-      width: 100%;
-      padding: 12px 20px;
-      border-radius: 30px;
-      border: 1px solid #1f2a40;
-      background: #1a1f30;
-      color: #fff;
-      font-size: 14px;
-      margin-bottom: 10px;
-    }
-    .comment-form button {
+    .join-group a {
+      display: inline-block;
       background: linear-gradient(45deg, #5b8cff, #3a6df0);
       color: #000;
-      border: none;
-      padding: 10px 30px;
-      border-radius: 30px;
-      font-size: 14px;
+      padding: 15px 40px;
+      border-radius: 50px;
+      font-size: 18px;
       font-weight: bold;
-      cursor: pointer;
+      text-decoration: none;
+      transition: 0.2s;
     }
-    .comment-list {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    .comment-item {
-      display: flex;
-      gap: 15px;
-      background: #1a1f30;
-      border-radius: 16px;
-      padding: 15px;
-      border: 1px solid #1f2a40;
-    }
-    .comment-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 2px solid #5b8cff;
-      object-fit: cover;
-    }
-    .comment-content {
-      flex: 1;
-    }
-    .comment-author {
-      font-weight: bold;
-      color: #5b8cff;
-    }
-    .comment-date {
-      font-size: 11px;
-      color: #8a9bb0;
-      margin-left: 10px;
-    }
-    .comment-text {
-      margin-top: 5px;
-      color: #ccc;
+    .join-group a:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px #5b8cff;
     }
     .footer {
       text-align: center;
@@ -1097,6 +1072,7 @@ app.get('/profile', isAuthenticated, (req, res) => {
     }
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
   <div class="profile-container">
@@ -1133,15 +1109,9 @@ app.get('/profile', isAuthenticated, (req, res) => {
       </form>
     </div>
 
-    <div class="comment-section">
-      <h3>💬 Diskusi Pengguna</h3>
-      <div class="comment-form">
-        <textarea id="commentInput" placeholder="Tulis komentar Anda..."></textarea>
-        <button onclick="postComment()">Kirim Komentar</button>
-      </div>
-      <div class="comment-list" id="commentList">
-        <p style="color:#8a9bb0; text-align:center;">Memuat komentar...</p>
-      </div>
+    <!-- Tombol Join Grup -->
+    <div class="join-group">
+      <a href="/chat"><i class="fas fa-comments"></i> Join Grup Diskusi</a>
     </div>
 
     <div class="footer">
@@ -1191,54 +1161,6 @@ app.get('/profile', isAuthenticated, (req, res) => {
         alert('Gagal: ' + result.error);
       }
     });
-
-    // Load comments
-    async function loadComments() {
-      try {
-        const res = await fetch('/api/comments');
-        if (!res.ok) throw new Error('Gagal memuat komentar');
-        const comments = await res.json();
-        const list = document.getElementById('commentList');
-        if (comments.length === 0) {
-          list.innerHTML = '<p style="color:#8a9bb0; text-align:center;">Belum ada komentar. Jadilah yang pertama!</p>';
-          return;
-        }
-        list.innerHTML = comments.map(c => \`
-          <div class="comment-item">
-            <img src="\${c.gravatar}" class="comment-avatar" onerror="this.src='https://www.gravatar.com/avatar/?d=identicon'">
-            <div class="comment-content">
-              <div>
-                <span class="comment-author">\${c.name}</span>
-                <span class="comment-date">\${new Date(c.createdAt).toLocaleString('id-ID')}</span>
-              </div>
-              <div class="comment-text">\${c.comment}</div>
-            </div>
-          </div>
-        \`).join('');
-      } catch (err) {
-        document.getElementById('commentList').innerHTML = '<p style="color:#ff3b30; text-align:center;">Gagal memuat komentar.</p>';
-      }
-    }
-
-    async function postComment() {
-      const input = document.getElementById('commentInput');
-      const comment = input.value.trim();
-      if (!comment) return alert('Komentar tidak boleh kosong');
-      try {
-        const res = await fetch('/api/comments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ comment })
-        });
-        if (!res.ok) throw new Error('Gagal mengirim komentar');
-        input.value = '';
-        loadComments();
-      } catch (err) {
-        alert('Gagal mengirim komentar: ' + err.message);
-      }
-    }
-
-    loadComments();
   </script>
 </body>
 </html>`;
@@ -1271,7 +1193,254 @@ app.post('/profile', isAuthenticated, upload.single('photo'), async (req, res) =
   }
 });
 
-// ==================== API KOMENTAR ====================
+// ==================== ROUTE CHAT ====================
+app.get('/chat', isAuthenticated, (req, res) => {
+  const user = req.user;
+  const photoUrl = user.photo || getGravatarUrl(user.email, 40);
+  const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Grup - ${SITE_NAME}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Rajdhani', sans-serif; }
+    body { background: #0a0c14; color: #fff; height: 100vh; display: flex; flex-direction: column; }
+    .chat-header {
+      background: #0f1320;
+      border-bottom: 1px solid #1f2a40;
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chat-header h2 { font-family: 'Orbitron'; color: #5b8cff; font-size: 24px; }
+    .chat-header a { color: #8a9bb0; text-decoration: none; font-size: 14px; }
+    .chat-header a:hover { color: #5b8cff; }
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .message {
+      display: flex;
+      gap: 10px;
+      max-width: 80%;
+    }
+    .message.own {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+    .message-avatar img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid #5b8cff;
+      object-fit: cover;
+    }
+    .message-content {
+      background: #1a1f30;
+      border-radius: 18px;
+      padding: 10px 15px;
+      position: relative;
+      word-wrap: break-word;
+    }
+    .message.own .message-content {
+      background: #5b8cff;
+      color: #000;
+    }
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 5px;
+      font-size: 12px;
+    }
+    .message-author { font-weight: bold; color: #5b8cff; }
+    .message.own .message-author { color: #000; }
+    .message-time { color: #8a9bb0; font-size: 10px; }
+    .message-reply {
+      background: #0f1320;
+      border-left: 3px solid #5b8cff;
+      padding: 5px 10px;
+      margin-bottom: 5px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #ccc;
+    }
+    .message-reply strong { color: #5b8cff; }
+    .reply-indicator {
+      background: #0f1320;
+      border-top: 1px solid #1f2a40;
+      padding: 10px 20px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .reply-indicator span { color: #8a9bb0; font-size: 14px; }
+    .reply-indicator button {
+      background: transparent;
+      border: 1px solid #5b8cff;
+      color: #5b8cff;
+      padding: 4px 10px;
+      border-radius: 30px;
+      cursor: pointer;
+    }
+    .input-area {
+      background: #0f1320;
+      border-top: 1px solid #1f2a40;
+      padding: 15px 20px;
+      display: flex;
+      gap: 10px;
+    }
+    .input-area input {
+      flex: 1;
+      padding: 12px 20px;
+      border-radius: 30px;
+      border: 1px solid #1f2a40;
+      background: #1a1f30;
+      color: #fff;
+      font-size: 14px;
+    }
+    .input-area input:focus { outline: none; border-color: #5b8cff; }
+    .input-area button {
+      background: #5b8cff;
+      border: none;
+      color: #000;
+      font-weight: bold;
+      padding: 12px 25px;
+      border-radius: 30px;
+      cursor: pointer;
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <div class="chat-header">
+    <h2>💬 Chat Grup</h2>
+    <a href="/"><i class="fas fa-home"></i> Beranda</a>
+  </div>
+  <div class="messages-container" id="messagesContainer"></div>
+  <div class="reply-indicator" id="replyIndicator">
+    <span id="replyText"></span>
+    <button onclick="cancelReply()">Batal</button>
+  </div>
+  <div class="input-area">
+    <input type="text" id="messageInput" placeholder="Tulis pesan...">
+    <button onclick="sendMessage()">Kirim</button>
+  </div>
+
+  <script>
+    let currentUser = { id: ${user.id}, name: '${user.name}', photo: '${photoUrl}' };
+    let replyTo = null;
+
+    async function loadMessages() {
+      const res = await fetch('/api/messages');
+      const messages = await res.json();
+      const container = document.getElementById('messagesContainer');
+      container.innerHTML = '';
+      messages.forEach(msg => {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message' + (msg.userId === currentUser.id ? ' own' : '');
+        msgDiv.innerHTML = \`
+          <div class="message-avatar"><img src="\${msg.userPhoto || 'https://www.gravatar.com/avatar/?d=identicon'}" onerror="this.src='https://www.gravatar.com/avatar/?d=identicon'"></div>
+          <div class="message-content">
+            \${msg.parentId ? \`<div class="message-reply"><strong>Membalas:</strong> \${msg.replyContent || ''}</div>\` : ''}
+            <div class="message-header">
+              <span class="message-author">\${msg.userName}</span>
+              <span class="message-time">\${new Date(msg.createdAt).toLocaleString('id-ID')}</span>
+            </div>
+            <div>\${msg.content}</div>
+            <button onclick="setReply(\${msg.id}, '\${msg.content.replace(/'/g, "\\'")}')" style="background:none; border:none; color:#5b8cff; font-size:12px; margin-top:5px; cursor:pointer;"><i class="fas fa-reply"></i> Balas</button>
+          </div>
+        \`;
+        container.appendChild(msgDiv);
+      });
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function setReply(id, content) {
+      replyTo = id;
+      document.getElementById('replyIndicator').style.display = 'flex';
+      document.getElementById('replyText').innerText = 'Membalas: ' + content;
+    }
+
+    function cancelReply() {
+      replyTo = null;
+      document.getElementById('replyIndicator').style.display = 'none';
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const content = input.value.trim();
+      if (!content) return;
+      await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, parentId: replyTo })
+      });
+      input.value = '';
+      cancelReply();
+      loadMessages();
+    }
+
+    loadMessages();
+    setInterval(loadMessages, 5000);
+  </script>
+</body>
+</html>`;
+  res.send(html);
+});
+
+// ==================== API MESSAGES ====================
+app.get('/api/messages', isAuthenticated, async (req, res) => {
+  try {
+    const messages = await getMessages();
+    const users = await getUsers();
+    const enriched = messages.map(m => {
+      const user = users.find(u => u.id === m.userId);
+      let replyContent = null;
+      if (m.parentId) {
+        const parent = messages.find(p => p.id === m.parentId);
+        replyContent = parent ? parent.content : '[pesan telah dihapus]';
+      }
+      return {
+        ...m,
+        userName: user ? user.name : 'Unknown',
+        userPhoto: user ? (user.photo || getGravatarUrl(user.email, 40)) : getGravatarUrl('', 40),
+        replyContent
+      };
+    }).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    res.json(enriched);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal memuat pesan' });
+  }
+});
+
+app.post('/api/messages', isAuthenticated, async (req, res) => {
+  const { content, parentId } = req.body;
+  if (!content || content.trim() === '') {
+    return res.status(400).json({ error: 'Pesan tidak boleh kosong' });
+  }
+  try {
+    const newMessage = await addMessage({
+      userId: req.user.id,
+      content: content.trim(),
+      parentId: parentId || null
+    });
+    res.json({ success: true, message: newMessage });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal mengirim pesan' });
+  }
+});
+
+// ==================== API KOMENTAR (LAMA) - TETAP ADA ====================
 app.get('/api/comments', isAuthenticated, async (req, res) => {
   try {
     const comments = await getComments();
@@ -1448,7 +1617,7 @@ app.get('/bratvid', async (req, res) => {
   }
 });
 
-// ==================== HALAMAN UTAMA (LENGKAP) ====================
+// ==================== HALAMAN UTAMA ====================
 app.get('/', (req, res) => {
   const user = req.user;
   const gravatar = user ? (user.photo || getGravatarUrl(user.email, 40)) : '';
@@ -1875,6 +2044,7 @@ body {
         <img src="${gravatar}" class="user-avatar" alt="Avatar">
         <div class="user-dropdown-content">
           <a href="/profile"><i class="fas fa-user"></i> Profil</a>
+          <a href="/chat"><i class="fas fa-comments"></i> Chat Grup</a>
           <button onclick="confirmDelete()"><i class="fas fa-trash"></i> Hapus Akun</button>
         </div>
       </div>
@@ -2409,7 +2579,7 @@ async function startServer() {
 \x1b[1m\x1b[32m═══════════════════════════════════════\x1b[0m
 🌐 Server: http://${HOST}:${PORT}
 👤 Developer: ${DEVELOPER}
-✅ Semua data tersimpan di GitHub, foto profil otomatis dihapus saat diganti!
+✅ Profil dengan tombol Join Grup, chat grup aktif di /chat
     `);
   });
 }
