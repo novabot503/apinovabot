@@ -1193,7 +1193,7 @@ app.post('/profile', isAuthenticated, upload.single('photo'), async (req, res) =
   }
 });
 
-// ==================== ROUTE CHAT ====================
+// ==================== ROUTE CHAT (MODERN, WHATSAPP-LIKE) ====================
 app.get('/chat', isAuthenticated, (req, res) => {
   const user = req.user;
   const photoUrl = user.photo || getGravatarUrl(user.email, 40);
@@ -1201,119 +1201,313 @@ app.get('/chat', isAuthenticated, (req, res) => {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Chat Grup - ${SITE_NAME}</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Rajdhani', sans-serif; }
-    body { background: #0a0c14; color: #fff; height: 100vh; display: flex; flex-direction: column; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Rajdhani', sans-serif;
+    }
+    
+    body {
+      background: #0a0c14;
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    /* Glassmorphism header */
     .chat-header {
-      background: #0f1320;
-      border-bottom: 1px solid #1f2a40;
+      background: rgba(15, 19, 32, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(42, 58, 96, 0.3);
       padding: 15px 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      z-index: 10;
     }
-    .chat-header h2 { font-family: 'Orbitron'; color: #5b8cff; font-size: 24px; }
-    .chat-header a { color: #8a9bb0; text-decoration: none; font-size: 14px; }
-    .chat-header a:hover { color: #5b8cff; }
+    
+    .chat-header h2 {
+      font-family: 'Orbitron';
+      color: #5b8cff;
+      font-size: 24px;
+      text-shadow: 0 0 10px rgba(91, 140, 255, 0.3);
+    }
+    
+    .chat-header a {
+      color: #8a9bb0;
+      text-decoration: none;
+      font-size: 14px;
+      transition: 0.2s;
+      padding: 8px 15px;
+      border-radius: 30px;
+      background: rgba(26, 31, 48, 0.5);
+      backdrop-filter: blur(4px);
+    }
+    
+    .chat-header a:hover {
+      color: #5b8cff;
+      background: rgba(91, 140, 255, 0.1);
+    }
+    
+    /* Messages container dengan scroll halus */
     .messages-container {
       flex: 1;
       overflow-y: auto;
       padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 15px;
+      gap: 12px;
+      scroll-behavior: smooth;
+      background: radial-gradient(circle at 10% 20%, rgba(26, 42, 72, 0.3), #0a0c14);
     }
+    
+    /* Message item dengan swipe detection */
     .message {
       display: flex;
       gap: 10px;
       max-width: 80%;
+      position: relative;
+      transition: transform 0.2s ease;
+      will-change: transform;
+      user-select: none;
+      -webkit-user-select: none;
     }
+    
     .message.own {
       align-self: flex-end;
       flex-direction: row-reverse;
     }
+    
+    /* Avatar dengan efek glow */
+    .message-avatar {
+      flex-shrink: 0;
+    }
+    
     .message-avatar img {
       width: 40px;
       height: 40px;
       border-radius: 50%;
       border: 2px solid #5b8cff;
       object-fit: cover;
+      box-shadow: 0 0 15px rgba(91, 140, 255, 0.3);
+      transition: 0.2s;
     }
+    
+    .message-avatar img:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(91, 140, 255, 0.6);
+    }
+    
+    /* Bubble transparan dengan efek glassmorphism */
     .message-content {
-      background: #1a1f30;
+      background: rgba(26, 31, 48, 0.4);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(91, 140, 255, 0.2);
       border-radius: 18px;
-      padding: 10px 15px;
+      padding: 10px 14px;
       position: relative;
       word-wrap: break-word;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      transition: 0.2s;
     }
+    
+    /* Bubble milik sendiri dengan warna berbeda */
     .message.own .message-content {
-      background: #5b8cff;
-      color: #000;
+      background: rgba(91, 140, 255, 0.2);
+      backdrop-filter: blur(8px);
+      border-color: rgba(91, 140, 255, 0.4);
     }
-    .message-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 5px;
-      font-size: 12px;
+    
+    /* Nama pengirim */
+    .message-author {
+      font-weight: bold;
+      color: #5b8cff;
+      font-size: 13px;
+      margin-bottom: 4px;
+      display: block;
     }
-    .message-author { font-weight: bold; color: #5b8cff; }
-    .message.own .message-author { color: #000; }
-    .message-time { color: #8a9bb0; font-size: 10px; }
+    
+    .message.own .message-author {
+      color: #aaccff;
+      text-align: right;
+    }
+    
+    /* Konten pesan */
+    .message-text {
+      font-size: 15px;
+      line-height: 1.4;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    
+    /* Waktu di bawah teks (seperti WhatsApp) */
+    .message-time {
+      font-size: 11px;
+      color: rgba(138, 155, 176, 0.8);
+      display: block;
+      text-align: right;
+      margin-top: 2px;
+    }
+    
+    .message.own .message-time {
+      color: rgba(170, 204, 255, 0.8);
+    }
+    
+    /* Reply quote */
     .message-reply {
-      background: #0f1320;
+      background: rgba(15, 19, 32, 0.6);
+      backdrop-filter: blur(4px);
       border-left: 3px solid #5b8cff;
-      padding: 5px 10px;
-      margin-bottom: 5px;
-      border-radius: 8px;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      border-radius: 12px;
       font-size: 12px;
       color: #ccc;
     }
-    .message-reply strong { color: #5b8cff; }
+    
+    .message-reply strong {
+      color: #5b8cff;
+    }
+    
+    /* Reply indicator */
     .reply-indicator {
-      background: #0f1320;
-      border-top: 1px solid #1f2a40;
-      padding: 10px 20px;
+      background: rgba(15, 19, 32, 0.8);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(42, 58, 96, 0.3);
+      padding: 12px 20px;
       display: none;
       align-items: center;
       justify-content: space-between;
+      z-index: 10;
     }
-    .reply-indicator span { color: #8a9bb0; font-size: 14px; }
+    
+    .reply-indicator span {
+      color: #8a9bb0;
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 70%;
+    }
+    
     .reply-indicator button {
       background: transparent;
       border: 1px solid #5b8cff;
       color: #5b8cff;
-      padding: 4px 10px;
+      padding: 6px 16px;
       border-radius: 30px;
       cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
     }
+    
+    .reply-indicator button:hover {
+      background: #5b8cff;
+      color: #000;
+    }
+    
+    /* Input area glassmorphism */
     .input-area {
-      background: #0f1320;
-      border-top: 1px solid #1f2a40;
+      background: rgba(15, 19, 32, 0.8);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(42, 58, 96, 0.3);
       padding: 15px 20px;
       display: flex;
       gap: 10px;
+      z-index: 10;
     }
+    
     .input-area input {
       flex: 1;
-      padding: 12px 20px;
-      border-radius: 30px;
-      border: 1px solid #1f2a40;
-      background: #1a1f30;
+      padding: 14px 20px;
+      border-radius: 40px;
+      border: 1px solid rgba(42, 58, 96, 0.5);
+      background: rgba(26, 31, 48, 0.6);
+      backdrop-filter: blur(4px);
       color: #fff;
-      font-size: 14px;
+      font-size: 15px;
+      transition: 0.2s;
     }
-    .input-area input:focus { outline: none; border-color: #5b8cff; }
+    
+    .input-area input:focus {
+      outline: none;
+      border-color: #5b8cff;
+      box-shadow: 0 0 15px rgba(91, 140, 255, 0.3);
+    }
+    
+    .input-area input::placeholder {
+      color: #8a9bb0;
+      opacity: 0.7;
+    }
+    
     .input-area button {
-      background: #5b8cff;
+      background: linear-gradient(45deg, #5b8cff, #3a6df0);
       border: none;
       color: #000;
       font-weight: bold;
-      padding: 12px 25px;
-      border-radius: 30px;
+      padding: 14px 30px;
+      border-radius: 40px;
       cursor: pointer;
+      transition: 0.2s;
+      box-shadow: 0 4px 15px rgba(91, 140, 255, 0.3);
+    }
+    
+    .input-area button:hover {
+      transform: scale(1.02);
+      box-shadow: 0 6px 20px rgba(91, 140, 255, 0.5);
+    }
+    
+    /* Animasi loading */
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      padding: 10px;
+      background: rgba(26, 31, 48, 0.4);
+      border-radius: 20px;
+      width: fit-content;
+    }
+    
+    .typing-indicator span {
+      width: 8px;
+      height: 8px;
+      background: #5b8cff;
+      border-radius: 50%;
+      animation: typing 1.4s infinite;
+    }
+    
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+      30% { transform: translateY(-8px); opacity: 1; }
+    }
+    
+    /* Scrollbar kustom */
+    .messages-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .messages-container::-webkit-scrollbar-track {
+      background: rgba(15, 19, 32, 0.5);
+    }
+    
+    .messages-container::-webkit-scrollbar-thumb {
+      background: #5b8cff;
+      border-radius: 10px;
+    }
+    
+    /* Smooth transitions */
+    * {
+      -webkit-tap-highlight-color: transparent;
     }
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
@@ -1321,52 +1515,125 @@ app.get('/chat', isAuthenticated, (req, res) => {
 </head>
 <body>
   <div class="chat-header">
-    <h2>💬 Chat Grup</h2>
+    <h2><i class="fas fa-comments"></i> Chat Grup</h2>
     <a href="/"><i class="fas fa-home"></i> Beranda</a>
   </div>
+  
   <div class="messages-container" id="messagesContainer"></div>
+  
   <div class="reply-indicator" id="replyIndicator">
     <span id="replyText"></span>
-    <button onclick="cancelReply()">Batal</button>
+    <button onclick="cancelReply()"><i class="fas fa-times"></i> Batal</button>
   </div>
+  
   <div class="input-area">
     <input type="text" id="messageInput" placeholder="Tulis pesan...">
-    <button onclick="sendMessage()">Kirim</button>
+    <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
   </div>
 
   <script>
     let currentUser = { id: ${user.id}, name: '${user.name}', photo: '${photoUrl}' };
     let replyTo = null;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let swipedMessageId = null;
+
+    // Deteksi swipe ke kiri (seperti WhatsApp)
+    function handleTouchStart(e) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      swipedMessageId = e.currentTarget.dataset.messageId;
+    }
+
+    function handleTouchMove(e) {
+      if (!touchStartX) return;
+      
+      const touchEndX = e.touches[0].clientX;
+      const touchEndY = e.touches[0].clientY;
+      const diffX = touchStartX - touchEndX;
+      const diffY = Math.abs(touchStartY - touchEndY);
+      
+      // Swipe horizontal yang cukup (geser ke kiri) dan bukan scroll vertikal
+      if (diffX > 50 && diffY < 50) {
+        e.preventDefault(); // Cegah scroll
+        const messageDiv = e.currentTarget;
+        const messageContent = messageDiv.querySelector('.message-text')?.innerText || '';
+        const messageId = messageDiv.dataset.messageId;
+        
+        // Trigger reply
+        setReply(messageId, messageContent);
+        
+        // Reset touch
+        touchStartX = 0;
+      }
+    }
+
+    function handleTouchEnd() {
+      touchStartX = 0;
+    }
 
     async function loadMessages() {
-      const res = await fetch('/api/messages');
-      const messages = await res.json();
-      const container = document.getElementById('messagesContainer');
-      container.innerHTML = '';
-      messages.forEach(msg => {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'message' + (msg.userId === currentUser.id ? ' own' : '');
-        msgDiv.innerHTML = \`
-          <div class="message-avatar"><img src="\${msg.userPhoto || 'https://www.gravatar.com/avatar/?d=identicon'}" onerror="this.src='https://www.gravatar.com/avatar/?d=identicon'"></div>
-          <div class="message-content">
-            \${msg.parentId ? \`<div class="message-reply"><strong>Membalas:</strong> \${msg.replyContent || ''}</div>\` : ''}
-            <div class="message-header">
-              <span class="message-author">\${msg.userName}</span>
-              <span class="message-time">\${new Date(msg.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+      try {
+        const res = await fetch('/api/messages');
+        const messages = await res.json();
+        const container = document.getElementById('messagesContainer');
+        container.innerHTML = '';
+        
+        messages.forEach(msg => {
+          const msgDiv = document.createElement('div');
+          msgDiv.className = 'message' + (msg.userId === currentUser.id ? ' own' : '');
+          msgDiv.dataset.messageId = msg.id;
+          
+          // Tambahkan event listener untuk swipe
+          msgDiv.addEventListener('touchstart', handleTouchStart, { passive: false });
+          msgDiv.addEventListener('touchmove', handleTouchMove, { passive: false });
+          msgDiv.addEventListener('touchend', handleTouchEnd);
+          
+          // Format waktu (HH:MM)
+          const time = new Date(msg.createdAt).toLocaleTimeString('id-ID', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+          });
+          
+          // Buat HTML pesan
+          let replyHtml = '';
+          if (msg.parentId && msg.replyContent) {
+            replyHtml = `<div class="message-reply"><i class="fas fa-reply"></i> <strong>Membalas:</strong> ${msg.replyContent}</div>`;
+          }
+          
+          msgDiv.innerHTML = `
+            <div class="message-avatar">
+              <img src="${msg.userPhoto || 'https://www.gravatar.com/avatar/?d=identicon'}" 
+                   onerror="this.src='https://www.gravatar.com/avatar/?d=identicon'">
             </div>
-            <div>\${msg.content}</div>
-            <button onclick="setReply(\${msg.id}, '\${msg.content.replace(/'/g, "\\'")}')" style="background:none; border:none; color:#5b8cff; font-size:12px; margin-top:5px; cursor:pointer;"><i class="fas fa-reply"></i> Balas</button>
-          </div>
-        \`;
-        container.appendChild(msgDiv);
-      });
-      container.scrollTop = container.scrollHeight;
+            <div class="message-content">
+              ${replyHtml}
+              <span class="message-author">${msg.userName}</span>
+              <div class="message-text">${msg.content}</div>
+              <span class="message-time">${time}</span>
+            </div>
+          `;
+          
+          container.appendChild(msgDiv);
+        });
+        
+        container.scrollTop = container.scrollHeight;
+      } catch (err) {
+        console.error('Gagal memuat pesan:', err);
+      }
     }
 
     function setReply(id, content) {
       replyTo = id;
       document.getElementById('replyIndicator').style.display = 'flex';
-      document.getElementById('replyText').innerText = 'Membalas: ' + content;
+      
+      // Batasi panjang teks yang ditampilkan
+      const displayText = content.length > 50 ? content.substring(0, 50) + '…' : content;
+      document.getElementById('replyText').innerHTML = `<i class="fas fa-reply"></i> Membalas: ${displayText}`;
+      
+      // Fokus ke input
+      document.getElementById('messageInput').focus();
     }
 
     function cancelReply() {
@@ -1378,18 +1645,30 @@ app.get('/chat', isAuthenticated, (req, res) => {
       const input = document.getElementById('messageInput');
       const content = input.value.trim();
       if (!content) return;
-      await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, parentId: replyTo })
-      });
-      input.value = '';
-      cancelReply();
-      loadMessages();
+      
+      try {
+        await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, parentId: replyTo })
+        });
+        
+        input.value = '';
+        cancelReply();
+        loadMessages();
+      } catch (err) {
+        alert('Gagal mengirim pesan: ' + err.message);
+      }
     }
 
+    // Kirim pesan dengan Enter
+    document.getElementById('messageInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    // Auto refresh setiap 3 detik
     loadMessages();
-    setInterval(loadMessages, 5000);
+    setInterval(loadMessages, 3000);
   </script>
 </body>
 </html>`;
@@ -2579,7 +2858,7 @@ async function startServer() {
 \x1b[1m\x1b[32m═══════════════════════════════════════\x1b[0m
 🌐 Server: http://${HOST}:${PORT}
 👤 Developer: ${DEVELOPER}
-✅ Profil dengan tombol Join Grup, chat grup mirip WhatsApp (waktu jam saja)
+✅ Chat grup modern dengan swipe to reply, waktu di bawah teks, bubble transparan!
     `);
   });
 }
