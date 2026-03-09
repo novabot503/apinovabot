@@ -1262,7 +1262,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
-      padding: 20px 20px 20px 20px; /* padding-bottom diperbesar */
+      padding: 20px 20px 15px 20px; /* padding-bottom cukup untuk ruang */
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -1525,6 +1525,10 @@ app.get('/chat', isAuthenticated, (req, res) => {
   <div class="input-area">
     <input type="text" id="messageInput" placeholder="Tulis pesan...">
     <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+  </div>
+  
+  <div class="footer">
+    <p>© 2026 Novabot • <i class="fab fa-telegram"></i> ${DEVELOPER} • v${VERSION}</p>
   </div>
 
   <script>
