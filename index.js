@@ -1695,7 +1695,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
   res.send(html);
 });
 
-// ==================== API MESSAGES ====================
+// ==================== API MESSAGES (DIPERBAIKI) ====================
 app.get('/api/messages', isAuthenticated, async (req, res) => {
   try {
     const messages = await getMessages();
@@ -1704,7 +1704,8 @@ app.get('/api/messages', isAuthenticated, async (req, res) => {
       const user = users.find(u => u.id === m.userId);
       let replyContent = null;
       if (m.parentId) {
-        const parent = messages.find(p => p.id === m.parentId);
+        // Konversi parentId ke number untuk perbandingan yang aman
+        const parent = messages.find(p => p.id === Number(m.parentId));
         replyContent = parent ? parent.content : '[pesan telah dihapus]';
       }
       return {
@@ -1721,16 +1722,27 @@ app.get('/api/messages', isAuthenticated, async (req, res) => {
   }
 });
 
+// POST /api/messages
 app.post('/api/messages', isAuthenticated, async (req, res) => {
   const { content, parentId } = req.body;
   if (!content || content.trim() === '') {
     return res.status(400).json({ error: 'Pesan tidak boleh kosong' });
   }
+  
+  // Konversi parentId ke number jika ada
+  let parentIdNum = null;
+  if (parentId) {
+    parentIdNum = parseInt(parentId, 10);
+    if (isNaN(parentIdNum)) {
+      return res.status(400).json({ error: 'parentId tidak valid' });
+    }
+  }
+  
   try {
     const newMessage = await addMessage({
       userId: req.user.id,
       content: content.trim(),
-      parentId: parentId || null
+      parentId: parentIdNum
     });
     res.json({ success: true, message: newMessage });
   } catch (err) {
