@@ -1201,7 +1201,8 @@ app.get('/chat', isAuthenticated, (req, res) => {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- Viewport yang optimal untuk fullscreen -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Chat Grup - ${SITE_NAME}</title>
   <style>
     * {
@@ -1211,13 +1212,25 @@ app.get('/chat', isAuthenticated, (req, res) => {
       font-family: 'Rajdhani', sans-serif;
     }
     
+    html {
+      /* Mencegah scrolling yang menyebabkan URL bar muncul */
+      overflow: hidden;
+      height: 100%;
+    }
+    
     body {
       background: #0a0c14;
       color: #fff;
-      height: 100vh;
+      height: 100dvh; /* Menggunakan dvh untuk menyesuaikan dengan dynamic viewport */
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: fixed; /* Membantu menjaga fullscreen */
+      width: 100%;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
     }
     
     /* Glassmorphism header */
@@ -1257,12 +1270,13 @@ app.get('/chat', isAuthenticated, (req, res) => {
       background: rgba(91, 140, 255, 0.1);
     }
     
-    /* Messages container dengan scroll halus */
+    /* Messages container dengan scroll internal */
     .messages-container {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
-      padding: 20px 20px 15px 20px; /* padding-bottom cukup untuk ruang */
+      -webkit-overflow-scrolling: touch; /* Smooth scroll di iOS */
+      padding: 20px 20px 15px 20px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -1538,6 +1552,25 @@ app.get('/chat', isAuthenticated, (req, res) => {
     let touchStartY = 0;
     let swipedMessageId = null;
 
+    // Fungsi untuk memaksa fullscreen dan menjaga layout tetap stabil
+    function initFullscreen() {
+      // Coba minta fullscreen saat halaman dimuat
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen();
+      }
+      
+      // Gunakan visualViewport API untuk mendapatkan ukuran sebenarnya
+      if (window.visualViewport) {
+        const setViewportHeight = () => {
+          const vh = window.visualViewport.height * 0.01;
+          document.documentElement.style.setProperty('--vh', \`\${vh}px\`);
+        };
+        
+        window.visualViewport.addEventListener('resize', setViewportHeight);
+        setViewportHeight();
+      }
+    }
+
     function handleTouchStart(e) {
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
@@ -1656,6 +1689,8 @@ app.get('/chat', isAuthenticated, (req, res) => {
       if (e.key === 'Enter') sendMessage();
     });
 
+    // Inisialisasi fullscreen dan muat pesan
+    initFullscreen();
     loadMessages();
     setInterval(loadMessages, 3000);
   </script>
