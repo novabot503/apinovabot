@@ -1102,8 +1102,9 @@ app.get('/profile', isAuthenticated, (req, res) => {
   <div class="profile-container">
     <button class="menu-btn" id="menuBtn">☰</button>
     <div class="dropdown-content" id="dropdown">
-      <a href="#" id="editProfileBtn">Edit Profil</a>
-      <a href="/logout">Keluar</a>
+      <a href="/"><i class="fas fa-home"></i> Beranda</a>
+      <a href="#" id="editProfileBtn"><i class="fas fa-edit"></i> Edit Profil</a>
+      <a href="/logout"><i class="fas fa-sign-out-alt"></i> Keluar Akun</a>
     </div>
 
     <div class="avatar-section">
