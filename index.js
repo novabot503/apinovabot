@@ -884,7 +884,7 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// ==================== ROUTE PROFIL (dengan tombol Join Grup) ====================
+// ==================== ROUTE PROFIL ====================
 app.get('/profile', isAuthenticated, (req, res) => {
   const user = req.user;
   const photoUrl = user.photo || getGravatarUrl(user.email, 200);
@@ -1255,7 +1255,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
     .message-header {
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: space-between;
       margin-bottom: 5px;
       font-size: 12px;
     }
@@ -1352,7 +1352,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
             \${msg.parentId ? \`<div class="message-reply"><strong>Membalas:</strong> \${msg.replyContent || ''}</div>\` : ''}
             <div class="message-header">
               <span class="message-author">\${msg.userName}</span>
-              <span class="message-time">\${new Date(msg.createdAt).toLocaleString('id-ID')}</span>
+              <span class="message-time">\${new Date(msg.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <div>\${msg.content}</div>
             <button onclick="setReply(\${msg.id}, '\${msg.content.replace(/'/g, "\\'")}')" style="background:none; border:none; color:#5b8cff; font-size:12px; margin-top:5px; cursor:pointer;"><i class="fas fa-reply"></i> Balas</button>
@@ -1440,7 +1440,7 @@ app.post('/api/messages', isAuthenticated, async (req, res) => {
   }
 });
 
-// ==================== API KOMENTAR (LAMA) - TETAP ADA ====================
+// ==================== API KOMENTAR (LAMA) ====================
 app.get('/api/comments', isAuthenticated, async (req, res) => {
   try {
     const comments = await getComments();
@@ -2579,7 +2579,7 @@ async function startServer() {
 \x1b[1m\x1b[32m═══════════════════════════════════════\x1b[0m
 🌐 Server: http://${HOST}:${PORT}
 👤 Developer: ${DEVELOPER}
-✅ Profil dengan tombol Join Grup, chat grup aktif di /chat
+✅ Profil dengan tombol Join Grup, chat grup mirip WhatsApp (waktu jam saja)
     `);
   });
 }
