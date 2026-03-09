@@ -1260,7 +1260,7 @@ app.get('/chat', isAuthenticated, (req, res) => {
     .messages-container {
       flex: 1;
       overflow-y: auto;
-      padding: 20px 20px 10px 20px;
+      padding: 20px 20px 5px 20px; /* padding-bottom dikurangi */
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -1465,10 +1465,10 @@ app.get('/chat', isAuthenticated, (req, res) => {
       box-shadow: 0 6px 20px rgba(91, 140, 255, 0.5);
     }
     
-    /* Footer */
+    /* Footer - lebih ramping */
     .footer {
       text-align: center;
-      padding: 10px 20px;
+      padding: 5px 20px; /* padding dikurangi */
       border-top: 1px solid #1f2a40;
       color: #8a9bb0;
       font-size: 12px;
